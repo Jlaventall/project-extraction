@@ -1,0 +1,74 @@
+{
+  "gameId": "[object Object]-[object Object]-1370600491",
+  "timestamp": "2026-06-11T00:24:33.860Z",
+  "week": 40,
+  "days": [
+    274,
+    280
+  ],
+  "month": 10,
+  "location": "mall",
+  "capital": "all-equity",
+  "avgDailyRevenue": 1480,
+  "totalRevenue": 10362,
+  "avgDailyCosts": 803,
+  "totalCosts": 5621,
+  "avgDailyWaste": 0,
+  "avgDailyProfit": 677,
+  "endCash": 104856,
+  "endDebt": 0,
+  "endEquity": 104856,
+  "avgDailyCustomers": 216,
+  "totalCustomers": 1513,
+  "avgServed": 228,
+  "avgDemandGap": 0,
+  "badReviewDays": 0,
+  "staffCount": 4,
+  "staffSnapshot": [
+    {
+      "role": "shiftLead",
+      "skill": 4,
+      "morale": 23,
+      "salary": 3700
+    },
+    {
+      "role": "barista",
+      "skill": 2,
+      "morale": 28,
+      "salary": 2500
+    },
+    {
+      "role": "barista",
+      "skill": 3,
+      "morale": 37,
+      "salary": 2500
+    },
+    {
+      "role": "barista",
+      "skill": 2,
+      "morale": 43,
+      "salary": 2500
+    }
+  ],
+  "avgMorale": 33,
+  "hiresThisWeek": 0,
+  "quitsThisWeek": 0,
+  "managerActive": false,
+  "managerSkill": 0,
+  "wasteReduction": 0,
+  "targets": {
+    "revenueTarget": 1612,
+    "wasteTarget": 50,
+    "moraleTarget": 40
+  },
+  "pricing": {
+    "drip": 4,
+    "espresso": 5.25,
+    "specialty": 6.75,
+    "food": 4.75
+  },
+  "events": [],
+  "notes": [
+    "Low morale: 33%"
+  ]
+}

@@ -1,0 +1,9 @@
+[project]
+name = "coffeesim-autoresearch"
+version = "0.1.0"
+description = "Autonomous research agent for CoffeeSim - config optimization via simulation"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.uv]
+dev-dependencies = []
