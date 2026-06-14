@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+autoresearch/journals/
+.vite/
+autoresearch/__pycache__/
+autoresearch/results.tsv
