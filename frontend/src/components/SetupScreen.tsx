@@ -3,7 +3,9 @@ import { useGameStore } from '../store/gameStore';
 import { LOCATIONS, MENUS, EQUIPMENT, CONTRACTS, CAPITAL_STRUCTURES, STAFF_ROLES } from '../data/gameData';
 import type { LocationId, MenuId, EquipmentId, ContractId, CapitalSplit } from '../types';
 
-const RESEARCH_URL = import.meta.env.VITE_RESEARCH_URL || 'http://localhost:8765';
+// In dev: uses localhost:8765 (autoresearch/server.py)
+// In prod on Vercel: empty string → relative paths like /api/research
+const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_RESEARCH_URL || 'http://localhost:8765');
 
 interface SavedGame {
   gameId: string;
@@ -64,7 +66,7 @@ export function SetupScreen() {
 
   // Load saved games on mount
   useEffect(() => {
-    fetch(`${RESEARCH_URL}/api/journal/list`)
+    fetch(`${API_BASE}/api/journal/list`)
       .then(r => r.json())
       .then(d => setSavedGames(d.games || []))
       .catch(() => {});
@@ -91,7 +93,7 @@ export function SetupScreen() {
   const startResearch = async () => {
     const partial = getPartialConfig();
     try {
-      const resp = await fetch(`${RESEARCH_URL}/api/research`, {
+      const resp = await fetch(`${API_BASE}/api/research`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ partial_config: partial, iterations: 200 }),
@@ -103,7 +105,7 @@ export function SetupScreen() {
 
       // Poll for results
       pollRef.current = setInterval(async () => {
-        const r = await fetch(`${RESEARCH_URL}/api/research/${data.job_id}`);
+        const r = await fetch(`${API_BASE}/api/research/${data.job_id}`);
         const job = await r.json();
         setResearchResult(job);
         if (job.status === 'complete' || job.status === 'error') {

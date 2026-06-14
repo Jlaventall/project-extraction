@@ -1,0 +1,66 @@
+{
+  "gameId": "[object Object]-[object Object]-325119013",
+  "timestamp": "2026-06-13T16:57:07.990Z",
+  "week": 13,
+  "days": [
+    85,
+    91
+  ],
+  "month": 4,
+  "location": "suburban",
+  "capital": "all-equity",
+  "avgDailyRevenue": 876,
+  "totalRevenue": 6134,
+  "avgDailyCosts": 828,
+  "totalCosts": 5799,
+  "avgDailyWaste": 0,
+  "avgDailyProfit": 48,
+  "endCash": 60972,
+  "endDebt": 0,
+  "endEquity": 60972,
+  "avgDailyCustomers": 130,
+  "totalCustomers": 911,
+  "avgServed": 184,
+  "avgDemandGap": 0,
+  "badReviewDays": 0,
+  "staffCount": 3,
+  "staffSnapshot": [
+    {
+      "role": "manager",
+      "skill": 5,
+      "morale": 51,
+      "salary": 5000
+    },
+    {
+      "role": "barista",
+      "skill": 1,
+      "morale": 51,
+      "salary": 2500
+    },
+    {
+      "role": "barista",
+      "skill": 1,
+      "morale": 51,
+      "salary": 2500
+    }
+  ],
+  "avgMorale": 51,
+  "hiresThisWeek": 0,
+  "quitsThisWeek": 0,
+  "managerActive": true,
+  "managerSkill": 5,
+  "wasteReduction": 10,
+  "targets": {
+    "revenueTarget": 1043,
+    "wasteTarget": 2,
+    "moraleTarget": 40
+  },
+  "pricing": {
+    "drip": 4,
+    "espresso": 5.75,
+    "specialty": 6.5,
+    "food": 4
+  },
+  "events": [],
+  "notes": []
+}
