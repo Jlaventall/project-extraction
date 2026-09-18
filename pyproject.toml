@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coffeesim"
+version = "0.1.0"
+description = "Deterministic SimPy coffee-roastery simulator with Gymnasium and HTTP adapters"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "gymnasium>=1.0",
+  "numpy>=2.0",
+  "simpy>=4.1",
+  "uvicorn[standard]>=0.34",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28",
+  "pytest>=8.3",
+  "pytest-cov>=6.0",
+]
+rl = [
+  "stable-baselines3>=2.6",
+]
+
+[project.scripts]
+coffeesim = "coffeesim.cli:main"
+coffeesim-api = "coffeesim.api.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["coffeesim"]
+

@@ -1,7 +1,10 @@
-node_modules
-dist
 .git
-.vscode
-.idea
-*.md
-.env*
+.git.empty-placeholder
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+frontend/node_modules
+frontend/dist
+run-traces
+

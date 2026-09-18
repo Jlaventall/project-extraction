@@ -1,45 +1,24 @@
-import { useState } from 'react';
-import { useGameStore } from '../store/gameStore';
-import type { ActiveEvent } from '../types';
+import type { SimEvent } from '../types';
 
-export function EventPanel({ events }: { events: ActiveEvent[] }) {
-  const resolveEvent = useGameStore((s) => s.resolveEvent);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  if (events.length === 0) return null;
-
+export function EventPanel({ events }: { events: SimEvent[] }) {
+  const recent = [...events].reverse().slice(0, 10);
   return (
-    <div className="event-panel">
-      <h3>⚡ Active Events</h3>
-      <p className="event-hint">Resolve events first, then advance the day.</p>
-      {events.map((event) => (
-        <div key={event.id} className="event-card">
-          <div className="event-header" onClick={() => setExpandedId(expandedId === event.id ? null : event.id)}>
+    <section className="event-panel">
+      <h3>Event stream</h3>
+      <p className="event-hint">Observable SimPy arrivals, queues, and completions.</p>
+      {recent.length === 0 && <div className="journal-empty">Advance a day to populate the event stream.</div>}
+      {recent.map((event, index) => (
+        <div className="event-card" key={`${event.time}-${event.type}-${index}`}>
+          <div className="event-header">
             <div className="event-title-row">
-              <span className={`event-freq freq-${event.frequency}`}>{event.frequency}</span>
-              <h4>{event.title}</h4>
+              <span className="event-freq freq-common">T+{event.time.toFixed(2)}</span>
+              <h4>{event.type.replaceAll('_', ' ')}</h4>
             </div>
-            <span className="event-chevron">{expandedId === event.id ? '▾' : '▸'}</span>
           </div>
-          {expandedId === event.id && (
-            <div className="event-body">
-              <p className="event-desc">{event.description}</p>
-              <div className="event-choices">
-                {event.choices.map((choice, i) => (
-                  <button
-                    key={i}
-                    className="event-choice-btn"
-                    onClick={() => resolveEvent(event.id, i)}
-                  >
-                    <span className="choice-label">{choice.label}</span>
-                    <span className="choice-desc">{choice.description}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <p className="event-desc">{event.message}</p>
         </div>
       ))}
-    </div>
+    </section>
   );
 }
+

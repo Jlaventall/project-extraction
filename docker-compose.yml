@@ -1,22 +1,15 @@
 services:
-  dev:
+  api:
     build:
       context: .
-      target: development
     ports:
-      - "5173:5173"
-    volumes:
-      - .:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-    command: npm run dev -- --host 0.0.0.0
+      - "8000:8000"
 
-  prod:
+  ui:
     build:
-      context: .
-      target: production
+      context: ./frontend
+    depends_on:
+      - api
     ports:
-      - "8080:80"
-    environment:
-      - NODE_ENV=production
+      - "5173:80"
+

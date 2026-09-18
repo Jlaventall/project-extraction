@@ -1,27 +1,10 @@
-# Development stage
-FROM node:20-alpine AS development
+FROM python:3.12-slim
 
 WORKDIR /app
+COPY pyproject.toml README.md ./
+COPY src ./src
+RUN pip install --no-cache-dir .
 
-COPY package.json package-lock.json ./
-RUN npm ci
+EXPOSE 8000
+CMD ["coffeesim-api"]
 
-COPY . .
-
-EXPOSE 5173
-
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
-
-# Build stage
-FROM development AS build
-
-RUN npm run build
-
-# Production stage
-FROM nginx:alpine AS production
-
-COPY --from=build /app/dist /usr/share/nginx/html
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]

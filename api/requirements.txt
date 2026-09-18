@@ -1,2 +1,0 @@
-# No external Python dependencies required
-# All simulation logic uses Python stdlib only
