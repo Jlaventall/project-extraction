@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import type { ActionDraft, Catalog, GameSnapshot, Phase } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Local development talks to the standalone API; a deployed build uses the
+// same-origin Vercel function unless an explicit API URL is configured.
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
 interface GameStore {
   phase: Phase;
