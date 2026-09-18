@@ -42,8 +42,15 @@ curl --fail http://localhost:8000/api/health
 curl --fail http://localhost:8000/api/catalog
 ```
 
+## Deployment note
+
+The Vercel API currently uses process-local game sessions. Serverless instances
+are not a durable database, so a cold start can lose active games. Before
+supporting long-lived production sessions, replace `InMemoryGameStore` with a
+Redis or Postgres-backed implementation behind the same interface in
+`src/coffeesim/api/store.py`.
+
 If the UI reports an API connection error, verify port 8000 first. If an action
 is reduced or rejected, inspect the amber warning banners; the engine reports
 minimum-order, capacity, credit, green-stock, and roast-queue constraints rather
 than silently discarding the command.
-

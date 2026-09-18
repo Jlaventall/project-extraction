@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from threading import RLock
 from typing import Any
 
 import uvicorn
@@ -13,6 +12,7 @@ from coffeesim.config import default_scenario
 from coffeesim.domain.models import WorldAction
 from coffeesim.policies.base_stock import BaseStockPolicy
 from coffeesim.simulation.world import CoffeeWorld
+from coffeesim.api.store import InMemoryGameStore
 
 
 class CreateGameRequest(BaseModel):
@@ -36,20 +36,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_games: dict[str, CoffeeWorld] = {}
-_locks: dict[str, RLock] = {}
+game_store = InMemoryGameStore()
 
 
 def _game(game_id: str) -> CoffeeWorld:
-    try:
-        return _games[game_id]
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail="Game not found") from exc
+    world = game_store.get(game_id)
+    if world is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+    return world
 
 
 @app.get("/api/health")
 async def health() -> dict[str, Any]:
-    return {"status": "ok", "active_games": len(_games), "engine": "simpy"}
+    return {"status": "ok", "active_games": game_store.count(), "engine": "simpy"}
 
 
 @app.get("/api/catalog")
@@ -72,8 +71,7 @@ async def catalog() -> dict[str, Any]:
 async def create_game(request: CreateGameRequest) -> dict[str, Any]:
     game_id = uuid.uuid4().hex[:12]
     world = CoffeeWorld(default_scenario(request.horizon_days), seed=request.seed)
-    _games[game_id] = world
-    _locks[game_id] = RLock()
+    game_store.create(game_id, world)
     return {"game_id": game_id, "state": world.snapshot()}
 
 
@@ -85,7 +83,7 @@ async def get_game(game_id: str) -> dict[str, Any]:
 @app.post("/api/games/{game_id}/step")
 async def step_game(game_id: str, request: StepRequest) -> dict[str, Any]:
     world = _game(game_id)
-    with _locks[game_id]:
+    with game_store.lock(game_id):
         if request.use_baseline:
             action = BaseStockPolicy(world.scenario).act(world.snapshot())
         else:
@@ -115,10 +113,8 @@ async def get_trace(game_id: str) -> dict[str, Any]:
 
 @app.delete("/api/games/{game_id}", status_code=204)
 async def delete_game(game_id: str) -> None:
-    if game_id not in _games:
+    if not game_store.delete(game_id):
         raise HTTPException(status_code=404, detail="Game not found")
-    del _games[game_id]
-    del _locks[game_id]
 
 
 def main() -> None:
