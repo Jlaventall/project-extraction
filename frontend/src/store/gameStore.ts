@@ -22,7 +22,7 @@ interface GameStore {
   resetGame: () => void;
 }
 
-const emptyDraft: ActionDraft = { green_orders: {}, roast_targets: {}, prices: {} };
+const emptyDraft: ActionDraft = { weekly_green_orders: {}, weekly_roast_targets: {}, prices: {} };
 
 async function responseJson(response: Response) {
   const body = await response.json().catch(() => ({}));
@@ -68,8 +68,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         phase: 'playing',
         loading: false,
         draft: {
-          green_orders: Object.fromEntries((catalog?.suppliers ?? []).map((item) => [item.id, 0])),
-          roast_targets: Object.fromEntries((catalog?.products ?? []).map((item) => [item.id, 0])),
+          weekly_green_orders: Object.fromEntries((catalog?.suppliers ?? []).map((item) => [item.id, 0])),
+          weekly_roast_targets: Object.fromEntries((catalog?.products ?? []).map((item) => [item.id, 0])),
           prices: { ...payload.state.prices },
         },
       });
@@ -93,8 +93,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         phase: payload.state.terminated || payload.state.truncated ? 'ended' : 'playing',
         loading: false,
         draft: {
-          green_orders: Object.fromEntries(Object.keys(get().draft.green_orders).map((key) => [key, 0])),
-          roast_targets: Object.fromEntries(Object.keys(get().draft.roast_targets).map((key) => [key, 0])),
+          weekly_green_orders: Object.fromEntries(Object.keys(get().draft.weekly_green_orders).map((key) => [key, 0])),
+          weekly_roast_targets: Object.fromEntries(Object.keys(get().draft.weekly_roast_targets).map((key) => [key, 0])),
           prices: { ...payload.state.prices },
         },
       });

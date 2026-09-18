@@ -39,26 +39,26 @@ export function Dashboard() {
       .filter((job) => job.sku === product.id && (job.status === 'queued' || job.status === 'running'))
       .reduce((total, job) => total + job.green_input_kg, 0),
   ]));
-  const plannedRoastInput = sum(draft.roast_targets);
+  const plannedRoastInput = sum(draft.weekly_roast_targets) / 7;
   const roastQueueRoom = Math.max(
     0,
     catalog.defaults.roaster_capacity_kg_per_day * 2 - sum(queuedGreenBySku),
   );
   const orderCost = catalog.suppliers.reduce(
-    (total, supplier) => total + (draft.green_orders[supplier.id] ?? 0) * supplier.unit_cost,
+    (total, supplier) => total + (draft.weekly_green_orders[supplier.id] ?? 0) * supplier.unit_cost,
     0,
   );
   const belowMinimum = catalog.suppliers
     .filter((supplier) => {
-      const amount = draft.green_orders[supplier.id] ?? 0;
+      const amount = draft.weekly_green_orders[supplier.id] ?? 0;
       return amount > 0 && amount < supplier.minimum_order;
     })
     .map((supplier) => `${supplier.name} order is below its ${supplier.minimum_order} kg minimum`);
   const planErrors = [
     ...belowMinimum,
     orderCost > state.credit_available + 0.01 ? `Orders exceed available liquidity by ${money(orderCost - state.credit_available)}` : '',
-    plannedRoastInput > roastQueueRoom + 0.01 ? `Roast plan exceeds queue room by ${kilos(plannedRoastInput - roastQueueRoom)}` : '',
-    plannedRoastInput > greenTotal + 0.01 ? `Roast plan needs ${kilos(plannedRoastInput - greenTotal)} more green coffee currently on hand` : '',
+    plannedRoastInput > roastQueueRoom + 0.01 ? `Today's roast release exceeds queue room by ${kilos(plannedRoastInput - roastQueueRoom)}` : '',
+    plannedRoastInput > greenTotal + 0.01 ? `Today's roast release needs ${kilos(plannedRoastInput - greenTotal)} more green coffee currently on hand` : '',
   ].filter(Boolean);
   const balanceHealthy = Math.abs(state.mass_balance.green_error_kg) < 1e-6
     && Math.abs(state.mass_balance.roasted_error_kg) < 1e-6;
@@ -85,7 +85,7 @@ export function Dashboard() {
             disabled={loading || phase === 'ended' || planErrors.length > 0}
             onClick={() => void advanceDay(false)}
           >
-            {loading ? 'Processing…' : 'Commit daily plan'}
+            {loading ? 'Processing…' : 'Commit weekly plan'}
           </button>
         </div>
       </header>
@@ -110,8 +110,8 @@ export function Dashboard() {
       <section className="decision-brief dash-card">
         <div className="card-header-row">
           <div>
-            <h3>Decision brief · next day</h3>
-            <p className="card-note">Demand forecast is mean demand; supply includes ready and already-queued roast output.</p>
+            <h3>Decision brief · weekly master schedule</h3>
+            <p className="card-note">Standing POs release weekly; the roast MO is distributed across seven days and remains bottleneck-constrained.</p>
           </div>
           <span className={`status-pill ${planErrors.length ? 'status-danger' : 'status-ok'}`}>
             {planErrors.length ? 'PLAN BLOCKED' : 'PLAN FEASIBLE'}
@@ -120,7 +120,7 @@ export function Dashboard() {
         <div className="decision-summary">
           <span>Green position: <strong>{kilos(greenTotal)}</strong> ready + <strong>{kilos(sum(state.inbound_green))}</strong> inbound</span>
           <span>Roast queue room: <strong>{kilos(roastQueueRoom)}</strong></span>
-          <span>Order cash required: <strong>{money(orderCost)}</strong> / {money(state.credit_available)} liquidity</span>
+          <span>Weekly PO cash: <strong>{money(orderCost)}</strong> / {money(state.credit_available)} liquidity</span>
         </div>
         {planErrors.map((message) => <div className="plan-error" key={message}>{message}</div>)}
         <div className="decision-table">
@@ -128,7 +128,7 @@ export function Dashboard() {
           {catalog.products.map((product) => {
             const forecast = forecastAtDraftPrices[product.id];
             const ready = state.roasted_inventory[product.id];
-            const projected = ready + queuedGreenBySku[product.id] * expectedYield + (draft.roast_targets[product.id] ?? 0) * expectedYield;
+            const projected = ready + queuedGreenBySku[product.id] * expectedYield + (draft.weekly_roast_targets[product.id] ?? 0) / 7 * expectedYield;
             const gap = projected - forecast - state.backorders[product.id];
             return (
               <div className="decision-row" key={product.id}>
@@ -147,8 +147,8 @@ export function Dashboard() {
       <section className="dash-grid">
         <article className="dash-card controls-card">
           <div className="card-header-row">
-            <h3>Procurement plan</h3>
-            <span className="status-pill">arrives stochastically</span>
+            <h3>Standing procurement PO · weekly kg</h3>
+            <span className="status-pill">weekly release · stochastic arrival</span>
           </div>
           <div className="control-table">
             {catalog.suppliers.map((supplier) => (
@@ -159,9 +159,10 @@ export function Dashboard() {
                 </span>
                 <input
                   type="number" min={0} max={supplier.maximum_order} step={5}
-                  value={draft.green_orders[supplier.id] ?? 0}
-                  onChange={(event) => setDraftValue('green_orders', supplier.id, bounded(event.target.value, 0, supplier.maximum_order))}
+                  value={draft.weekly_green_orders[supplier.id] ?? 0}
+                  onChange={(event) => setDraftValue('weekly_green_orders', supplier.id, bounded(event.target.value, 0, supplier.maximum_order))}
                 />
+                <PlanMeter value={draft.weekly_green_orders[supplier.id] ?? 0} target={supplier.maximum_order} label={`supplier cap ${supplier.maximum_order} kg`} />
               </label>
             ))}
           </div>
@@ -169,8 +170,8 @@ export function Dashboard() {
 
         <article className="dash-card controls-card">
           <div className="card-header-row">
-            <h3>Roast schedule</h3>
-            <span className="status-pill">green input kg</span>
+            <h3>Master roast MO · weekly green input</h3>
+            <span className="status-pill">7-day bottleneck {catalog.defaults.roaster_capacity_kg_per_day * 7} kg</span>
           </div>
           <div className="control-table">
             {catalog.products.map((product) => (
@@ -181,9 +182,10 @@ export function Dashboard() {
                 </span>
                 <input
                   type="number" min={0} max={catalog.defaults.roaster_capacity_kg_per_day * 1.5} step={5}
-                  value={draft.roast_targets[product.id] ?? 0}
-                  onChange={(event) => setDraftValue('roast_targets', product.id, bounded(event.target.value, 0, catalog.defaults.roaster_capacity_kg_per_day * 1.5))}
+                  value={draft.weekly_roast_targets[product.id] ?? 0}
+                  onChange={(event) => setDraftValue('weekly_roast_targets', product.id, bounded(event.target.value, 0, catalog.defaults.roaster_capacity_kg_per_day * 7))}
                 />
+                <PlanMeter value={draft.weekly_roast_targets[product.id] ?? 0} target={forecastAtDraftPrices[product.id] * 7 / expectedYield} label={`weekly demand ${kilos(forecastAtDraftPrices[product.id] * 7 / expectedYield)} green`} />
               </label>
             ))}
           </div>
@@ -292,6 +294,16 @@ function Kpi({ label, value, sub, trend }: { label: string; value: string; sub: 
 
 function Summary({ label, value }: { label: string; value: string }) {
   return <div className="summary-row"><span>{label}</span><span>{value}</span></div>;
+}
+
+function PlanMeter({ value, target, label }: { value: number; target: number; label: string }) {
+  const ratio = target > 0 ? value / target : 0;
+  return (
+    <span className="plan-meter" title={`${value.toFixed(0)} kg planned · ${label}`}>
+      <span className="plan-meter-track"><span className="plan-meter-fill" style={{ width: `${Math.min(100, ratio * 100)}%` }} /></span>
+      <small>{label}</small>
+    </span>
+  );
 }
 
 function bounded(raw: string, minimum: number, maximum: number) {

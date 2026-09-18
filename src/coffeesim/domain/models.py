@@ -56,6 +56,9 @@ class WorldAction:
     green_orders: dict[str, float] = field(default_factory=dict)
     roast_targets: dict[str, float] = field(default_factory=dict)
     prices: dict[str, float] = field(default_factory=dict)
+    # Weekly master-schedule inputs. The engine expands these into daily work.
+    weekly_green_orders: dict[str, float] = field(default_factory=dict)
+    weekly_roast_targets: dict[str, float] = field(default_factory=dict)
 
     @classmethod
     def from_mapping(cls, value: dict[str, Any] | None) -> "WorldAction":
@@ -64,4 +67,6 @@ class WorldAction:
             green_orders={str(k): float(v) for k, v in value.get("green_orders", {}).items()},
             roast_targets={str(k): float(v) for k, v in value.get("roast_targets", {}).items()},
             prices={str(k): float(v) for k, v in value.get("prices", {}).items()},
+            weekly_green_orders={str(k): float(v) for k, v in value.get("weekly_green_orders", {}).items()},
+            weekly_roast_targets={str(k): float(v) for k, v in value.get("weekly_roast_targets", {}).items()},
         )

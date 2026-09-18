@@ -2096,3 +2096,6 @@ body {
     align-items: flex-start;
   }
 }
+.plan-meter { display: flex; align-items: center; gap: 8px; grid-column: 2; color: var(--muted); font-size: 0.72rem; }
+.plan-meter-track { display: block; width: 84px; height: 5px; overflow: hidden; border-radius: 5px; background: #2a2f38; }
+.plan-meter-fill { display: block; height: 100%; border-radius: inherit; background: #f59e0b; transition: width 160ms ease; }

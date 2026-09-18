@@ -49,6 +49,8 @@ class CoffeeWorld:
         self.roast_jobs: list[RoastJob] = []
         self.backorders: list[Backorder] = []
         self.prices = {item.id: item.base_price for item in self.scenario.products}
+        self.standing_green_orders: dict[str, float] = {}
+        self.standing_roast_targets: dict[str, float] = {}
         self.day = 0
         self.last_roast_profile: str | None = None
         self.terminated = False
@@ -226,6 +228,9 @@ class CoffeeWorld:
         )
         accepted = min(order.quantity_kg, available_capacity)
         if accepted > 0:
+            delivered_quality = float(np.clip(
+                supplier.quality + self.production_rng.normal(0.0, 0.045), 0.45, 1.0
+            ))
             self.inventory.add(
                 InventoryLot(
                     lot_id=self._next_id("green"),
@@ -235,10 +240,17 @@ class CoffeeWorld:
                     unit_cost=order.unit_cost,
                     created_at=float(self.env.now),
                     expires_at=float(self.env.now + 365.0),
-                    quality=supplier.quality,
+                    quality=delivered_quality,
                     metadata={"purchase_order": order.order_id},
                 )
             )
+            if delivered_quality < supplier.quality - 0.06:
+                self._log(
+                    "quality_variance",
+                    f"{supplier.name} lot quality tested below expectation ({delivered_quality:.0%})",
+                    supplier_id=supplier.id,
+                    quality=round(delivered_quality, 4),
+                )
         self.stats["green_received"] += order.quantity_kg
         overflow = order.quantity_kg - accepted
         if overflow > 1e-9:
@@ -314,6 +326,15 @@ class CoffeeWorld:
                 )
             )
             output = job.green_input_kg * (1.0 - shrinkage)
+            if self.production_rng.random() < 0.035:
+                defect_factor = float(self.production_rng.uniform(0.55, 0.9))
+                output *= defect_factor
+                self._log(
+                    "quality_failure",
+                    f"{job.sku} roast quality hold reduced sellable output to {output:.1f} kg",
+                    job_id=job.job_id,
+                    yield_factor=round(defect_factor, 4),
+                )
             energy = job.green_input_kg * self.scenario.energy_cost_per_green_kg
             self.ledger.post(
                 self.env.now,
@@ -418,6 +439,12 @@ class CoffeeWorld:
             self.env.process(self._package_process(sku, taken, unit_price, cost))
         remainder = quantity - taken
         if remainder > 1e-9:
+            self._log(
+                "stockout",
+                f"{sku} stockout left {remainder:.1f} kg unserved",
+                sku=sku,
+                quantity=round(remainder, 3),
+            )
             self.backorders.append(
                 Backorder(
                     order_id=self._next_id("demand"),
@@ -511,6 +538,21 @@ class CoffeeWorld:
             raise RuntimeError("Episode is complete; create or reset the world before stepping")
         if not isinstance(action, WorldAction):
             action = WorldAction.from_mapping(action)
+        if action.weekly_green_orders:
+            self.standing_green_orders = dict(action.weekly_green_orders)
+        if action.weekly_roast_targets:
+            self.standing_roast_targets = dict(action.weekly_roast_targets)
+        # Standing POs are released at the start of each simulated week. The
+        # master roast schedule is spread across seven operating days and is
+        # still bounded by the roaster queue and available green stock.
+        if self.standing_green_orders or self.standing_roast_targets:
+            action = WorldAction(
+                green_orders=(self.standing_green_orders if self.day % 7 == 0 else {}),
+                roast_targets={sku: qty / 7.0 for sku, qty in self.standing_roast_targets.items()},
+                prices=action.prices,
+                weekly_green_orders=self.standing_green_orders,
+                weekly_roast_targets=self.standing_roast_targets,
+            )
         action, warnings = self._sanitize_action(action)
         self.prices = dict(action.prices)
         self._daily = {
@@ -558,6 +600,8 @@ class CoffeeWorld:
                 "green_orders": dict(action.green_orders),
                 "roast_targets": dict(action.roast_targets),
                 "prices": dict(action.prices),
+                "weekly_green_orders": dict(self.standing_green_orders),
+                "weekly_roast_targets": dict(self.standing_roast_targets),
             }
         )
         observation = self.snapshot()
@@ -622,6 +666,10 @@ class CoffeeWorld:
             "backorders": {key: round(value, 3) for key, value in backlog.items()},
             "prices": {key: round(value, 2) for key, value in self.prices.items()},
             "demand_forecast": self._expected_demand_forecast(),
+            "standing_plan": {
+                "weekly_green_orders": dict(self.standing_green_orders),
+                "weekly_roast_targets": dict(self.standing_roast_targets),
+            },
             "resources": {
                 "roaster_busy": len(self.roaster.users),
                 "roaster_queue": len(self.roaster.queue),

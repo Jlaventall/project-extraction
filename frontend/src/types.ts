@@ -88,6 +88,10 @@ export interface GameSnapshot {
   backorders: Record<string, number>;
   prices: Record<string, number>;
   demand_forecast: Record<string, number>;
+  standing_plan?: {
+    weekly_green_orders: Record<string, number>;
+    weekly_roast_targets: Record<string, number>;
+  };
   resources: {
     roaster_busy: number;
     roaster_queue: number;
@@ -107,7 +111,7 @@ export interface GameSnapshot {
 }
 
 export interface ActionDraft {
-  green_orders: Record<string, number>;
-  roast_targets: Record<string, number>;
+  weekly_green_orders: Record<string, number>;
+  weekly_roast_targets: Record<string, number>;
   prices: Record<string, number>;
 }
