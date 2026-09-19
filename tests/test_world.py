@@ -63,6 +63,15 @@ def test_baseline_procures_each_bom_origin() -> None:
     assert {"brazil", "colombia", "ethiopia"}.issubset(ordered_suppliers)
 
 
+def test_lot_rounding_forms_order_without_exception_event() -> None:
+    world = CoffeeWorld(default_scenario(7), seed=42)
+    world.step(WorldAction(green_orders={"colombia": 53.0}, roast_targets={"house": 12.0}))
+
+    assert world.purchase_orders[0].quantity_kg == pytest.approx(55.0)
+    assert not any("rounded" in warning.lower() for warning in world.daily_history[-1]["warnings"])
+    assert not any("rounded" in event["message"].lower() for event in world.all_event_log)
+
+
 def test_roasting_conserves_mass_and_applies_shrinkage() -> None:
     world = CoffeeWorld(default_scenario(7), seed=4)
     action = neutral_action(world)

@@ -2119,6 +2119,8 @@ body {
 .material-row { border-bottom: 1px solid rgba(42,47,56,.5); }
 .coverage-total { margin-top: 14px; color: var(--muted); font-size: .82rem; }
 .coverage-total strong { color: var(--accent); }
+.currency-input { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.currency-input input { min-width: 82px; }
 .scenario-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 10px 0; }
 .daily-ops-table { overflow-x: auto; font-size: .78rem; }
 .daily-ops-heading, .daily-ops-row { min-width: 720px; display: grid; grid-template-columns: .5fr 1fr 1fr 1.2fr 1fr .7fr 1fr 1fr; gap: 10px; align-items: center; padding: 8px 0; }

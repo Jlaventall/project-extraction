@@ -107,7 +107,7 @@ export function SetupScreen() {
       {catalog && <section className="staffing-panel init-panel">
         <h3>Initialization · finished goods & BOM</h3>
         <p className="config-hint">Recipes constrain which raw origins can satisfy each master roast order. Pricing can be refined in the live dashboard before commit.</p>
-        <div className="bom-table"><div className="bom-heading"><span>SKU</span><span>Initial price (USD/kg)</span><span>Editable BOM fractions</span></div>{catalog.products.map((product) => <div className="bom-row" key={product.id}><strong>{product.name}</strong><input type="number" min={product.min_price} max={product.max_price} step={0.01} inputMode="decimal" value={initialPrices[product.id] ?? product.base_price} onChange={(event) => setInitialPrices((current) => ({ ...current, [product.id]: Math.round(Number(event.target.value) * 100) / 100 }))} /><span className="bom-inputs">{(product.bom ?? []).map((component) => <label key={component.raw_material_id}>{component.raw_material_id}<input type="number" min={0} max={1} step={0.05} value={bomOverrides[product.id]?.[component.raw_material_id] ?? component.fraction} onChange={(event) => setBomOverrides((current) => ({ ...current, [product.id]: { ...(current[product.id] ?? Object.fromEntries((product.bom ?? []).map((item) => [item.raw_material_id, item.fraction]))), [component.raw_material_id]: Number(event.target.value) } }))} /></label>)}</span></div>)}</div>
+        <div className="bom-table"><div className="bom-heading"><span>SKU</span><span>Initial price (USD/kg)</span><span>Editable BOM fractions</span></div>{catalog.products.map((product) => <div className="bom-row" key={product.id}><strong>{product.name}</strong><CurrencyInput value={initialPrices[product.id] ?? product.base_price} minimum={product.min_price} maximum={product.max_price} onChange={(value) => setInitialPrices((current) => ({ ...current, [product.id]: value }))} /><span className="bom-inputs">{(product.bom ?? []).map((component) => <label key={component.raw_material_id}>{component.raw_material_id}<input type="number" min={0} max={1} step={0.05} value={bomOverrides[product.id]?.[component.raw_material_id] ?? component.fraction} onChange={(event) => setBomOverrides((current) => ({ ...current, [product.id]: { ...(current[product.id] ?? Object.fromEntries((product.bom ?? []).map((item) => [item.raw_material_id, item.fraction]))), [component.raw_material_id]: Number(event.target.value) } }))} /></label>)}</span></div>)}</div>
       </section>}
       {error && <div className="api-error">API error: {error}. Start the Python server on port 8000.</div>}
       {bomErrors.map((message) => <div className="sim-warning" key={message}>{message}</div>)}
@@ -122,4 +122,9 @@ export function SetupScreen() {
       </div>
     </main>
   );
+}
+
+function CurrencyInput({ value, minimum, maximum, onChange }: { value: number; minimum: number; maximum: number; onChange: (value: number) => void }) {
+  const parsed = Number(value);
+  return <span className="currency-input"><span>$</span><input type="text" inputMode="decimal" value={Number.isFinite(parsed) ? parsed.toFixed(2) : minimum.toFixed(2)} onChange={(event) => { const next = Number(event.target.value.replace(/[^0-9.]/g, '')); if (Number.isFinite(next)) onChange(Math.min(maximum, Math.max(minimum, Math.round(next * 100) / 100))); }} /></span>;
 }

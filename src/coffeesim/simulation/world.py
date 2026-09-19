@@ -149,8 +149,6 @@ class CoffeeWorld:
             raw = self._finite_nonnegative(action.green_orders.get(supplier_id, 0.0))
             lot = max(1.0, supplier.lot_size_kg)
             rounded = round(raw / lot) * lot
-            if abs(rounded - raw) > 1e-9:
-                warnings.append(f"{supplier_id} PO rounded to {lot:.0f} kg lot size")
             raw = rounded
             clipped = min(raw, supplier.maximum_order)
             if 0 < clipped < supplier.minimum_order:
@@ -167,8 +165,6 @@ class CoffeeWorld:
             raw = self._finite_nonnegative(action.roast_targets.get(sku, 0.0))
             lot = max(1.0, self.products[sku].lot_size_kg)
             rounded = round(raw / lot) * lot
-            if abs(rounded - raw) > 1e-9:
-                warnings.append(f"{sku} MO rounded to {lot:.0f} kg lot size")
             raw = rounded
             clipped = min(raw, self.scenario.roaster_capacity_kg_per_day * 1.5)
             if clipped != raw:

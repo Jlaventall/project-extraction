@@ -162,7 +162,7 @@ export function Dashboard() {
       {activeTab === 'control' && <section className="dash-card top-pricing-card">
         <div className="card-header-row"><div><h3>Pricing & demand control</h3><p className="card-note">Price elasticity is applied to each SKU forecast before demand is realized.</p></div><button className="btn btn-small" onClick={() => setForecastTracksPrice(!forecastTracksPrice)}>{forecastTracksPrice ? 'Auto forecast' : 'Fixed forecast'}</button></div>
         <div className="pricing-grid">
-          {catalog.products.map((product) => <div className="price-input" key={product.id}><label>{product.name} · USD/kg</label><input type="number" min={product.min_price} max={product.max_price} step={0.01} inputMode="decimal" value={draft.prices[product.id] ?? product.base_price} onChange={(event) => setDraftValue('prices', product.id, roundedBounded(event.target.value, product.min_price, product.max_price, 2))} /><small>{kilos(forecastAtDraftPrices[product.id] * 7)} / week forecast</small></div>)}
+          {catalog.products.map((product) => <div className="price-input" key={product.id}><label>{product.name}</label><CurrencyInput value={draft.prices[product.id] ?? product.base_price} minimum={product.min_price} maximum={product.max_price} onChange={(value) => setDraftValue('prices', product.id, value)} /><small>{kilos(forecastAtDraftPrices[product.id] * 7)} / week forecast</small></div>)}
         </div>
       </section>}
 
@@ -283,11 +283,7 @@ export function Dashboard() {
             {catalog.products.map((product) => (
               <div className="price-input" key={product.id}>
                   <label>{product.name} · USD/kg</label>
-                  <input
-                  type="number" min={product.min_price} max={product.max_price} step={0.01} inputMode="decimal"
-                  value={draft.prices[product.id] ?? product.base_price}
-                  onChange={(event) => setDraftValue('prices', product.id, roundedBounded(event.target.value, product.min_price, product.max_price, 2))}
-                />
+                <CurrencyInput value={draft.prices[product.id] ?? product.base_price} minimum={product.min_price} maximum={product.max_price} onChange={(value) => setDraftValue('prices', product.id, value)} />
               </div>
             ))}
           </div>
@@ -383,6 +379,10 @@ function PlanMeter({ value, target, label }: { value: number; target: number; la
       <small>{label}</small>
     </span>
   );
+}
+
+function CurrencyInput({ value, minimum, maximum, onChange }: { value: number; minimum: number; maximum: number; onChange: (value: number) => void }) {
+  return <span className="currency-input"><span>$</span><input type="text" inputMode="decimal" value={value.toFixed(2)} onChange={(event) => onChange(roundedBounded(event.target.value, minimum, maximum, 2))} /></span>;
 }
 
 function bounded(raw: string, minimum: number, maximum: number) {
