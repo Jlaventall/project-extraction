@@ -21,8 +21,13 @@ class BaseStockPolicy:
         order_gap = max(0.0, green_target - total_green)
         orders = {supplier.id: 0.0 for supplier in self.scenario.suppliers}
         if order_gap > 0:
-            cheapest = min(self.scenario.suppliers, key=lambda supplier: supplier.unit_cost)
-            orders[cheapest.id] = min(cheapest.maximum_order, max(cheapest.minimum_order, order_gap))
+            ranked = sorted(self.scenario.suppliers, key=lambda supplier: supplier.unit_cost)
+            primary, secondary = ranked[0], ranked[1]
+            primary_amount = min(primary.maximum_order * self.scenario.supplier_concentration_limit, order_gap)
+            orders[primary.id] = max(primary.minimum_order, primary_amount) if primary_amount >= primary.minimum_order else 0.0
+            remainder = max(0.0, order_gap - orders[primary.id])
+            if remainder > 0:
+                orders[secondary.id] = min(secondary.maximum_order, max(secondary.minimum_order, remainder))
 
         roasts: dict[str, float] = {}
         total_target = 0.0

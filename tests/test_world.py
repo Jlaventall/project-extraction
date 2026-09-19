@@ -45,6 +45,13 @@ def test_purchase_orders_respect_lead_time() -> None:
     assert world.inventory.quantity("green", "brazil") > opening
 
 
+def test_supplier_concentration_is_constrained() -> None:
+    world = CoffeeWorld(default_scenario(7), seed=42)
+    _, _, _, _, info = world.step(WorldAction(green_orders={"brazil": 800.0}))
+    assert any("concentration limit" in warning for warning in info["warnings"])
+    assert sum(order.quantity_kg for order in world.purchase_orders) == pytest.approx(520.0)
+
+
 def test_roasting_conserves_mass_and_applies_shrinkage() -> None:
     world = CoffeeWorld(default_scenario(7), seed=4)
     action = neutral_action(world)

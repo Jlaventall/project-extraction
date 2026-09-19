@@ -186,10 +186,20 @@ class CoffeeWorld:
         )
         liquidity = max(0.0, self.ledger.cash + self.scenario.credit_limit)
 
+        requested_total = sum(max(0.0, amount) for amount in action.green_orders.values())
+        active_requested = [key for key, amount in action.green_orders.items() if amount > 0]
+        concentration_cap = requested_total * self.scenario.supplier_concentration_limit
         for supplier_id, requested in action.green_orders.items():
             if requested <= 0:
                 continue
             supplier = self.suppliers[supplier_id]
+            if requested_total > 0 and requested > concentration_cap and concentration_cap >= supplier.minimum_order:
+                warnings.append(
+                    f"{supplier_id} order reduced to {self.scenario.supplier_concentration_limit:.0%} concentration limit; diversify suppliers"
+                )
+                requested = concentration_cap
+            if requested_total > 0 and len(active_requested) < self.scenario.minimum_active_suppliers:
+                warnings.append(f"Supplier plan has {len(active_requested)} active source(s); at least {self.scenario.minimum_active_suppliers} are recommended")
             affordable = liquidity / supplier.unit_cost
             quantity = min(requested, capacity_remaining, affordable)
             if quantity + 1e-9 < supplier.minimum_order:
@@ -403,8 +413,9 @@ class CoffeeWorld:
         for sku, product in self.products.items():
             price_ratio = self.prices[sku] / product.base_price
             price_factor = price_ratio ** -1.35
-            shock = float(np.clip(self.demand_rng.lognormal(0.0, 0.12), 0.65, 1.55))
-            if shock >= 1.25:
+            spike = self.demand_rng.random() < self.scenario.demand_spike_probability
+            shock = float(self.demand_rng.uniform(self.scenario.demand_spike_low, self.scenario.demand_spike_high)) if spike else float(np.clip(self.demand_rng.lognormal(0.0, 0.16), 0.55, 1.65))
+            if spike:
                 self._log("demand_spike", f"{sku} demand spike at {shock:.0%} of expected volume", sku=sku, multiplier=round(shock, 4))
             expected = product.base_daily_demand_kg * weekday_factor * seasonal * price_factor * shock
             total = int(self.demand_rng.poisson(max(0.0, expected)))

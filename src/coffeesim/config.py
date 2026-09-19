@@ -48,6 +48,11 @@ class Scenario:
     lost_sale_penalty_per_kg: float = 9.0
     maximum_backorder_days: float = 3.0
     energy_cost_per_green_kg: float = 0.55
+    minimum_active_suppliers: int = 2
+    supplier_concentration_limit: float = 0.65
+    demand_spike_probability: float = 0.08
+    demand_spike_low: float = 1.35
+    demand_spike_high: float = 1.85
     shrinkage_low: float = 0.15
     shrinkage_high: float = 0.20
     roast_breakdown_probability: float = 0.04
