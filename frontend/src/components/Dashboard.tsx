@@ -117,7 +117,7 @@ export function Dashboard() {
       </section>
 
       <section className="dash-card run-summary-card">
-        <div className="card-header-row"><div><h3>Simulation summary</h3><p className="card-note">Current run performance for mode <strong>{state.simulation_mode ?? 'live'}</strong>.</p></div><span className="status-pill">DAY {state.day}</span></div>
+        <div className="card-header-row"><div><h3>Simulation summary</h3><p className="card-note">Mode <strong>{state.simulation_mode ?? 'live'}</strong> · strategy <strong>{state.simulation_strategy ?? 'human_manual'}</strong>.</p></div><span className="status-pill">DAY {state.day}</span></div>
         <div className="summary-grid">
           <Summary label="Cumulative reward" value={money(state.history.reduce((total, day) => total + day.reward, 0))} />
           <Summary label="Mean daily reward" value={money(state.history.length ? state.history.reduce((total, day) => total + day.reward, 0) / state.history.length : 0)} />

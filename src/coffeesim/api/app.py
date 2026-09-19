@@ -19,6 +19,7 @@ class CreateGameRequest(BaseModel):
     seed: int = 42
     horizon_days: int = Field(default=90, ge=7, le=730)
     mode: Literal["live", "benchmark", "pettingzoo"] = "live"
+    strategy: str = "human_manual"
 
 
 class StepRequest(BaseModel):
@@ -75,9 +76,10 @@ async def create_game(request: CreateGameRequest) -> dict[str, Any]:
     game_id = uuid.uuid4().hex[:12]
     world = CoffeeWorld(default_scenario(request.horizon_days), seed=request.seed)
     world.simulation_mode = request.mode
+    world.simulation_strategy = request.strategy
     game_store.create(game_id, world)
     state = world.snapshot()
-    return {"game_id": game_id, "state": state, "simulation_mode": request.mode}
+    return {"game_id": game_id, "state": state, "simulation_mode": request.mode, "strategy": request.strategy}
 
 
 @app.get("/api/games/{game_id}")

@@ -15,7 +15,7 @@ interface GameStore {
   error: string | null;
   autoAdvance: boolean;
   fetchCatalog: () => Promise<void>;
-  startGame: (seed: number, horizonDays: number, mode?: SimulationMode) => Promise<void>;
+  startGame: (seed: number, horizonDays: number, mode?: SimulationMode, strategy?: string) => Promise<void>;
   advanceDay: (useBaseline?: boolean) => Promise<void>;
   setDraftValue: (group: keyof ActionDraft, key: string, value: number) => void;
   setAutoAdvance: (enabled: boolean) => void;
@@ -23,7 +23,7 @@ interface GameStore {
 }
 
 type ActionPayload = ActionDraft & { use_baseline: boolean };
-type StoredRun = { seed: number; horizonDays: number; actions: ActionPayload[] };
+type StoredRun = { seed: number; horizonDays: number; mode: SimulationMode; strategy: string; actions: ActionPayload[] };
 const RUN_KEY = 'coffeesim-run-v1';
 function loadRun(): StoredRun | null {
   try { return JSON.parse(localStorage.getItem(RUN_KEY) ?? 'null') as StoredRun | null; } catch { return null; }
@@ -65,16 +65,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  startGame: async (seed, horizonDays, mode = 'live') => {
+  startGame: async (seed, horizonDays, mode = 'live', strategy = 'human_manual') => {
     set({ loading: true, error: null });
     try {
       const payload = await responseJson(await fetch(`${API_BASE}/api/games`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seed, horizon_days: horizonDays, mode }),
+        body: JSON.stringify({ seed, horizon_days: horizonDays, mode, strategy }),
       })) as { game_id: string; state: GameSnapshot };
       const catalog = get().catalog;
-      saveRun({ seed, horizonDays, actions: [] });
+      saveRun({ seed, horizonDays, mode, strategy, actions: [] });
       set({
         gameId: payload.game_id,
         state: payload.state,
@@ -109,7 +109,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (!saved) throw error;
         const recreated = await responseJson(await fetch(`${API_BASE}/api/games`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ seed: saved.seed, horizon_days: saved.horizonDays }),
+          body: JSON.stringify({ seed: saved.seed, horizon_days: saved.horizonDays, mode: saved.mode, strategy: saved.strategy }),
         })) as { game_id: string; state: GameSnapshot };
         for (const previous of saved.actions) await requestStep(recreated.game_id, previous);
         set({ gameId: recreated.game_id });

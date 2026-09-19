@@ -6,6 +6,7 @@ export function SetupScreen() {
   const [seed, setSeed] = useState(42);
   const [horizon, setHorizon] = useState(90);
   const [mode, setMode] = useState<'live' | 'benchmark' | 'pettingzoo'>('live');
+  const [strategy, setStrategy] = useState('human_manual');
 
   useEffect(() => { void fetchCatalog(); }, [fetchCatalog]);
 
@@ -42,6 +43,16 @@ export function SetupScreen() {
             <span className="config-hint">Controls demand, yield, and delivery uncertainty.</span>
           </label>
           <label className="config-group">
+            <span>Strategy</span>
+            <select value={strategy} onChange={(event) => setStrategy(event.target.value)}>
+              <option value="human_manual">Manual weekly planner</option>
+              <option value="baseline">Adaptive baseline</option>
+              <option value="random_control">Random control</option>
+              <option value="role_ablation">PettingZoo role ablation</option>
+            </select>
+            <span className="config-hint">Saved with the run so results remain attributable.</span>
+          </label>
+          <label className="config-group">
             <span>Simulation mode</span>
             <select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}>
               <option value="live">Live control room</option>
@@ -73,7 +84,7 @@ export function SetupScreen() {
         <button
           className="btn btn-primary btn-start"
           disabled={loading || !catalog}
-          onClick={() => void startGame(seed, horizon, mode)}
+          onClick={() => void startGame(seed, horizon, mode, strategy)}
         >
           {loading ? 'Starting engine…' : 'Start roastery'}
         </button>

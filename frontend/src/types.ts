@@ -85,6 +85,7 @@ export interface RoastJob {
 
 export interface GameSnapshot {
   simulation_mode?: SimulationMode;
+  simulation_strategy?: string;
   scenario: string;
   seed: number;
   day: number;
