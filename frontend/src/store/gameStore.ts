@@ -22,13 +22,25 @@ interface GameStore {
   resetGame: () => void;
 }
 
+type ActionPayload = ActionDraft & { use_baseline: boolean };
+type StoredRun = { seed: number; horizonDays: number; actions: ActionPayload[] };
+const RUN_KEY = 'coffeesim-run-v1';
+function loadRun(): StoredRun | null {
+  try { return JSON.parse(localStorage.getItem(RUN_KEY) ?? 'null') as StoredRun | null; } catch { return null; }
+}
+function saveRun(run: StoredRun) { localStorage.setItem(RUN_KEY, JSON.stringify(run)); }
+class ApiError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number) { super(message); this.status = status; }
+}
+
 const emptyDraft: ActionDraft = { weekly_green_orders: {}, weekly_roast_targets: {}, prices: {} };
 
 async function responseJson(response: Response) {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const detail = typeof body.detail === 'string' ? body.detail : `Request failed (${response.status})`;
-    throw new Error(detail);
+    throw new ApiError(detail, response.status);
   }
   return body;
 }
@@ -62,6 +74,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         body: JSON.stringify({ seed, horizon_days: horizonDays }),
       })) as { game_id: string; state: GameSnapshot };
       const catalog = get().catalog;
+      saveRun({ seed, horizonDays, actions: [] });
       set({
         gameId: payload.game_id,
         state: payload.state,
@@ -82,12 +95,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { gameId, draft, loading } = get();
     if (!gameId || loading) return;
     set({ loading: true, error: null });
+    const action: ActionPayload = { ...draft, use_baseline: useBaseline };
+    const requestStep = async (id: string, payload: ActionPayload) => await responseJson(await fetch(`${API_BASE}/api/games/${id}/step`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    })) as { state: GameSnapshot };
     try {
-      const payload = await responseJson(await fetch(`${API_BASE}/api/games/${gameId}/step`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...draft, use_baseline: useBaseline }),
-      })) as { state: GameSnapshot };
+      let payload: { state: GameSnapshot };
+      try {
+        payload = await requestStep(gameId, action);
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 404) throw error;
+        const saved = loadRun();
+        if (!saved) throw error;
+        const recreated = await responseJson(await fetch(`${API_BASE}/api/games`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ seed: saved.seed, horizon_days: saved.horizonDays }),
+        })) as { game_id: string; state: GameSnapshot };
+        for (const previous of saved.actions) await requestStep(recreated.game_id, previous);
+        set({ gameId: recreated.game_id });
+        payload = await requestStep(recreated.game_id, action);
+      }
+      const saved = loadRun();
+      if (saved) { saved.actions.push(action); saveRun(saved); }
       const standing = payload.state.standing_plan;
       set({
         state: payload.state,
