@@ -12,7 +12,7 @@ const sum = (values: Record<string, number>) => Object.values(values).reduce((to
 export function Dashboard() {
   const [forecastTracksPrice, setForecastTracksPrice] = useState(true);
   const {
-    phase, catalog, state, draft, loading, error, autoAdvance, runHistory,
+    phase, catalog, state, gameId, draft, loading, error, autoAdvance, runHistory,
     advanceDay, setDraftValue, setAutoAdvance, resetGame,
   } = useGameStore();
 
@@ -338,7 +338,7 @@ export function Dashboard() {
         </article>
       </section>
 
-      <EventPanel events={state.events} />
+      <EventPanel events={state.events} snapshot={state} gameId={gameId} />
     </main>
   );
 }
