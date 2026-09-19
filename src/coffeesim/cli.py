@@ -20,7 +20,13 @@ def main() -> None:
     parser.add_argument("--benchmark", action="store_true", help="Run baseline and random policy benchmark")
     parser.add_argument("--output-dir", type=Path, default=Path("benchmark-output"))
     parser.add_argument("--seeds", help="Comma-separated seeds for a benchmark matrix")
+    parser.add_argument("--multiagent-benchmark", action="store_true", help="Run PettingZoo role-ablation benchmark")
     args = parser.parse_args()
+    if args.multiagent_benchmark:
+        from coffeesim.simulation.pettingzoo_benchmark import run_role_benchmark
+        seeds = [int(value.strip()) for value in args.seeds.split(",")] if args.seeds else [args.seed]
+        print(json.dumps(run_role_benchmark(days=args.days, seeds=seeds, output_dir=args.output_dir), indent=2))
+        return
     if args.benchmark:
         if args.seeds:
             seeds = [int(value.strip()) for value in args.seeds.split(",") if value.strip()]
