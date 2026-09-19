@@ -94,8 +94,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         phase: payload.state.terminated || payload.state.truncated ? 'ended' : 'playing',
         loading: false,
         draft: {
-          weekly_green_orders: useBaseline && standing ? { ...standing.weekly_green_orders } : Object.fromEntries(Object.keys(get().draft.weekly_green_orders).map((key) => [key, 0])),
-          weekly_roast_targets: useBaseline && standing ? { ...standing.weekly_roast_targets } : Object.fromEntries(Object.keys(get().draft.weekly_roast_targets).map((key) => [key, 0])),
+          // A manual commit edits the standing plan; keep it visible for the
+          // next decision instead of silently resetting it to zero.
+          weekly_green_orders: standing ? { ...standing.weekly_green_orders } : { ...get().draft.weekly_green_orders },
+          weekly_roast_targets: standing ? { ...standing.weekly_roast_targets } : { ...get().draft.weekly_roast_targets },
           prices: { ...payload.state.prices },
         },
       });
@@ -109,7 +111,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ draft: { ...current, [group]: { ...current[group], [key]: Number.isFinite(value) ? value : 0 } } });
   },
 
-  setAutoAdvance: (enabled) => set({ autoAdvance: enabled }),
+  setAutoAdvance: (enabled) => {
+    if (!enabled) {
+      set({ autoAdvance: false });
+      return;
+    }
+    const { catalog, state, draft } = get();
+    if (!catalog || !state) {
+      set({ autoAdvance: true });
+      return;
+    }
+    const yieldFactor = 0.825;
+    const weekly_roast_targets = Object.fromEntries(catalog.products.map((product) => [
+      product.id,
+      Number(((state.demand_forecast?.[product.id] ?? product.base_daily_demand_kg) * 7 / yieldFactor).toFixed(1)),
+    ]));
+    const rawNeed = Object.values(weekly_roast_targets).reduce((total, value) => total + value, 0);
+    const cheapest = [...catalog.suppliers].sort((a, b) => a.unit_cost - b.unit_cost)[0];
+    const rawPosition = Object.values(state.green_inventory).reduce((a, b) => a + b, 0)
+      + Object.values(state.inbound_green).reduce((a, b) => a + b, 0);
+    const weekly_green_orders = { ...draft.weekly_green_orders };
+    if (cheapest) weekly_green_orders[cheapest.id] = Math.min(cheapest.maximum_order, Math.max(0, Math.ceil(Math.max(0, rawNeed - rawPosition) / cheapest.minimum_order) * cheapest.minimum_order));
+    set({ autoAdvance: true, draft: { ...draft, weekly_green_orders, weekly_roast_targets } });
+  },
 
   resetGame: () => set({
     phase: 'setup', gameId: null, state: null, draft: emptyDraft,

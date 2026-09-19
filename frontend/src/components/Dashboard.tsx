@@ -40,6 +40,9 @@ export function Dashboard() {
       .reduce((total, job) => total + job.green_input_kg, 0),
   ]));
   const plannedRoastInput = sum(draft.weekly_roast_targets) / 7;
+  const weeklyDemandTotal = sum(forecastAtDraftPrices) * 7;
+  const weeklyRawNeed = sum(draft.weekly_roast_targets);
+  const weeklyExpectedOutput = weeklyRawNeed * expectedYield;
   const roastQueueRoom = Math.max(
     0,
     catalog.defaults.roaster_capacity_kg_per_day * 2 - sum(queuedGreenBySku),
@@ -126,33 +129,36 @@ export function Dashboard() {
         <div className="card-header-row">
           <div>
             <h3>Decision brief · weekly master schedule</h3>
-            <p className="card-note">Standing POs release weekly; the roast MO is distributed across seven days and remains bottleneck-constrained.</p>
+            <p className="card-note">PO quantity is kg ordered per weekly release. MO quantity is green input per week; expected finished output includes the {expectedYield.toFixed(1)} yield factor.</p>
           </div>
           <span className={`status-pill ${planErrors.length ? 'status-danger' : 'status-ok'}`}>
             {planErrors.length ? 'PLAN BLOCKED' : 'PLAN FEASIBLE'}
           </span>
         </div>
         <div className="decision-summary">
-          <span>Green position: <strong>{kilos(greenTotal)}</strong> ready + <strong>{kilos(sum(state.inbound_green))}</strong> inbound</span>
-          <span>Roast queue room: <strong>{kilos(roastQueueRoom)}</strong></span>
+          <span>Raw on hand: <strong>{kilos(greenTotal)}</strong> + {kilos(sum(state.inbound_green))} inbound</span>
+          <span>MO raw need: <strong>{kilos(weeklyRawNeed)}</strong> → {kilos(weeklyExpectedOutput)} finished</span>
+          <span>Finished on hand: <strong>{kilos(roastedTotal)}</strong> vs {kilos(weeklyDemandTotal)} weekly demand</span>
           <span>Weekly PO cash: <strong>{money(orderCost)}</strong> / {money(state.credit_available)} liquidity</span>
         </div>
         {planErrors.map((message) => <div className="plan-error" key={message}>{message}</div>)}
         <div className="decision-table">
-          <div className="decision-heading"><span>SKU</span><span>Demand/day</span><span>Ready</span><span>Queued + plan</span><span>Coverage</span><span>Gap after backlog</span></div>
+          <div className="decision-heading"><span>SKU</span><span>Demand/week</span><span>FG on hand</span><span>MO output</span><span>Raw need</span><span>Coverage</span></div>
           {catalog.products.map((product) => {
             const forecast = forecastAtDraftPrices[product.id];
             const ready = state.roasted_inventory[product.id];
-            const projected = ready + queuedGreenBySku[product.id] * expectedYield + (draft.weekly_roast_targets[product.id] ?? 0) / 7 * expectedYield;
-            const gap = projected - forecast - state.backorders[product.id];
+            const weeklyDemand = forecast * 7;
+            const moRaw = draft.weekly_roast_targets[product.id] ?? 0;
+            const projected = ready + queuedGreenBySku[product.id] * expectedYield + moRaw * expectedYield;
+            const gap = projected - weeklyDemand - state.backorders[product.id];
             return (
               <div className="decision-row" key={product.id}>
                 <strong>{product.name}</strong>
-                <span>{kilos(forecast)}</span>
+                <span>{kilos(weeklyDemand)}</span>
                 <span>{kilos(ready)}</span>
-                <span>{kilos(projected)}</span>
-                <span>{(projected / Math.max(0.1, forecast)).toFixed(1)}d</span>
-                <span className={gap < 0 ? 'text-danger' : 'text-positive'}>{gap >= 0 ? '+' : ''}{kilos(gap)}</span>
+                <span>{kilos(moRaw * expectedYield)}</span>
+                <span>{kilos(moRaw)}</span>
+                <span className={gap < 0 ? 'text-danger' : 'text-positive'}>{(projected / Math.max(0.1, weeklyDemand)).toFixed(1)}w</span>
               </div>
             );
           })}
@@ -170,7 +176,7 @@ export function Dashboard() {
               <label className="control-row" key={supplier.id}>
                 <span>
                   <strong>{supplier.name}</strong>
-                  <small>{money(supplier.unit_cost)}/kg · {supplier.mean_lead_days}d mean · min {supplier.minimum_order}kg</small>
+                  <small>{money(supplier.unit_cost)}/kg · {supplier.mean_lead_days}d mean · min {supplier.minimum_order}kg · on hand {kilos(state.green_inventory[supplier.id] ?? 0)} · inbound {kilos(state.inbound_green[supplier.id] ?? 0)}</small>
                 </span>
                 <input
                   type="number" min={0} max={supplier.maximum_order} step={5}
