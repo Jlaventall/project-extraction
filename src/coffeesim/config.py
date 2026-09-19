@@ -53,6 +53,7 @@ class Scenario:
     demand_spike_probability: float = 0.08
     demand_spike_low: float = 1.35
     demand_spike_high: float = 1.85
+    demand_growth_rate_daily: float = 0.0015
     shrinkage_low: float = 0.15
     shrinkage_high: float = 0.20
     roast_breakdown_probability: float = 0.04

@@ -14,7 +14,7 @@ class BaseStockPolicy:
         total_green = sum(state["green_inventory"].values()) + sum(state["inbound_green"].values())
         expected_yield = 1.0 - (self.scenario.shrinkage_low + self.scenario.shrinkage_high) / 2.0
         green_target = (
-            sum(product.base_daily_demand_kg for product in self.scenario.products)
+            sum(state.get("demand_forecast", {}).get(product.id, product.base_daily_demand_kg) for product in self.scenario.products)
             * 10.0
             / expected_yield
         )
@@ -34,7 +34,7 @@ class BaseStockPolicy:
         for product in self.scenario.products:
             on_hand = state["roasted_inventory"][product.id]
             backlog = state["backorders"][product.id]
-            target = product.base_daily_demand_kg * 3.0 + backlog
+            target = state.get("demand_forecast", {}).get(product.id, product.base_daily_demand_kg) * 3.0 + backlog
             roasts[product.id] = max(0.0, target - on_hand) / expected_yield
             total_target += roasts[product.id]
         if total_target > self.scenario.roaster_capacity_kg_per_day:

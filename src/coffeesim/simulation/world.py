@@ -410,6 +410,7 @@ class CoffeeWorld:
         weekday = self.day % 7
         weekday_factor = (0.92, 0.96, 1.0, 1.03, 1.12, 1.08, 0.82)[weekday]
         seasonal = 1.0 + 0.08 * math.sin((self.day / 365.0) * 2.0 * math.pi)
+        growth = (1.0 + self.scenario.demand_growth_rate_daily) ** self.day
         for sku, product in self.products.items():
             price_ratio = self.prices[sku] / product.base_price
             price_factor = price_ratio ** -1.35
@@ -417,7 +418,7 @@ class CoffeeWorld:
             shock = float(self.demand_rng.uniform(self.scenario.demand_spike_low, self.scenario.demand_spike_high)) if spike else float(np.clip(self.demand_rng.lognormal(0.0, 0.16), 0.55, 1.65))
             if spike:
                 self._log("demand_spike", f"{sku} demand spike at {shock:.0%} of expected volume", sku=sku, multiplier=round(shock, 4))
-            expected = product.base_daily_demand_kg * weekday_factor * seasonal * price_factor * shock
+            expected = product.base_daily_demand_kg * growth * weekday_factor * seasonal * price_factor * shock
             total = int(self.demand_rng.poisson(max(0.0, expected)))
             if total <= 0:
                 continue
@@ -442,9 +443,11 @@ class CoffeeWorld:
         weekday = (self.day + 1) % 7
         weekday_factor = (0.92, 0.96, 1.0, 1.03, 1.12, 1.08, 0.82)[weekday]
         seasonal = 1.0 + 0.08 * math.sin(((self.day + 1) / 365.0) * 2.0 * math.pi)
+        growth = (1.0 + self.scenario.demand_growth_rate_daily) ** (self.day + 1)
         return {
             sku: round(
                 product.base_daily_demand_kg
+                * growth
                 * weekday_factor
                 * seasonal
                 * (self.prices[sku] / product.base_price) ** -1.35,
