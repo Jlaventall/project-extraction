@@ -57,6 +57,7 @@ class CoffeeWorld:
         self.truncated = False
         self.termination_reason: str | None = None
         self.event_log: list[dict[str, Any]] = []
+        self.all_event_log: list[dict[str, Any]] = []
         self.action_history: list[dict[str, Any]] = []
         self.daily_history: list[dict[str, Any]] = []
         self._ids = count(1)
@@ -125,6 +126,7 @@ class CoffeeWorld:
                 **data,
             }
         )
+        self.all_event_log.append(self.event_log[-1])
         if len(self.event_log) > 500:
             self.event_log = self.event_log[-500:]
 

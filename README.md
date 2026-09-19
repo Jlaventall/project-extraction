@@ -89,6 +89,7 @@ Open <http://localhost:5173>. The API health endpoint is
 source .venv/bin/activate
 pytest
 python -m coffeesim.cli --days 90 --seed 42
+python -m coffeesim.cli --benchmark --days 90 --seed 42 --output-dir benchmark-output
 python - <<'PY'
 from gymnasium.utils.env_checker import check_env
 from coffeesim.envs import CoffeeRoasteryEnv
@@ -104,6 +105,10 @@ Save a trace from the API's `/api/games/{id}/trace` endpoint and replay it with:
 ```bash
 coffeesim --replay run-trace.json --json
 ```
+
+The benchmark command writes one complete JSON artifact per policy containing
+actions, every daily record, all events, the full ledger, and the final state,
+plus a compact comparison summary.
 
 ## Simulation contract
 
