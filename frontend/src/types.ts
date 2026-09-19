@@ -50,6 +50,9 @@ export interface DailyMetric {
   cash_change: number;
   cash: number;
   warnings: string[];
+  forecast?: Record<string, number>;
+  roast_hours?: number;
+  packaging_hours?: number;
 }
 
 export interface SimEvent {

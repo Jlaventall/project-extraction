@@ -2100,4 +2100,8 @@ body {
 .plan-meter-track { display: block; width: 84px; height: 5px; overflow: hidden; border-radius: 5px; background: #2a2f38; }
 .plan-meter-fill { display: block; height: 100%; border-radius: inherit; background: #f59e0b; transition: width 160ms ease; }
 .cumulative-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.exception-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.demand-sparkline { min-width: 90px; }
+.btn-small { padding: 5px 9px; font-size: 0.72rem; }
 @media (max-width: 900px) { .cumulative-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .exception-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

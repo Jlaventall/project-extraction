@@ -72,6 +72,8 @@ class CoffeeWorld:
             "roasted_spoiled": 0.0,
             "demand": 0.0,
             "lost_sales": 0.0,
+            "roast_hours": 0.0,
+            "packaging_hours": 0.0,
         }
         self._initialize_inventory()
 
@@ -306,6 +308,8 @@ class CoffeeWorld:
                 yield self.env.timeout(self.scenario.roast_setup_hours / 24.0)
                 self._daily["changeovers"] += 1
             duration = max(0.01, job.green_input_kg / self.scenario.roaster_capacity_kg_per_day)
+            self.stats["roast_hours"] += duration * 24.0
+            self._daily["roast_hours"] += duration * 24.0
             yield self.env.timeout(duration / 2.0)
             if self.event_rng.random() < self.scenario.roast_breakdown_probability:
                 repair_hours = float(
@@ -463,6 +467,8 @@ class CoffeeWorld:
         with self.packager.request() as request:
             yield request
             duration = quantity / self.scenario.packaging_capacity_kg_per_day
+            self.stats["packaging_hours"] += duration * 24.0
+            self._daily["packaging_hours"] += duration * 24.0
             yield self.env.timeout(max(0.002, duration))
             revenue = quantity * unit_price
             self.ledger.post(self.env.now, "sales", revenue, memo=f"{sku} {quantity:.1f} kg")
@@ -568,6 +574,8 @@ class CoffeeWorld:
             "revenue": 0.0,
             "changeovers": 0.0,
             "downtime_hours": 0.0,
+            "roast_hours": 0.0,
+            "packaging_hours": 0.0,
         }
         ledger_start = len(self.ledger.entries)
         cash_start = self.ledger.cash
@@ -595,6 +603,7 @@ class CoffeeWorld:
             "cash_change": round(self.ledger.cash - cash_start, 3),
             "cash": round(self.ledger.cash, 3),
             "warnings": list(warnings),
+            "forecast": self._expected_demand_forecast(),
         }
         self.daily_history.append(daily)
         self.action_history.append(

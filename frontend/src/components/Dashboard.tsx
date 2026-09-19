@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
@@ -10,6 +10,7 @@ const kilos = (value: number) => `${value.toFixed(1)} kg`;
 const sum = (values: Record<string, number>) => Object.values(values).reduce((total, value) => total + value, 0);
 
 export function Dashboard() {
+  const [forecastTracksPrice, setForecastTracksPrice] = useState(true);
   const {
     phase, catalog, state, draft, loading, error, autoAdvance,
     advanceDay, setDraftValue, setAutoAdvance, resetGame,
@@ -26,10 +27,15 @@ export function Dashboard() {
   const roastedTotal = sum(state.roasted_inventory);
   const backlogTotal = sum(state.backorders);
   const expectedYield = 0.825;
+  const exceptionCounts = state.events.reduce<Record<string, number>>((counts, event) => {
+    const key = event.type === 'stockout' ? 'no_stock' : event.type === 'quality_failure' || event.type === 'quality_variance' ? 'quality' : event.type === 'late_delivery' ? 'late' : event.type === 'demand_spike' ? 'demand' : '';
+    if (key) counts[key] = (counts[key] ?? 0) + 1;
+    return counts;
+  }, {});
   const forecastAtDraftPrices = Object.fromEntries(catalog.products.map((product) => {
     const committedPrice = state.prices[product.id] ?? product.base_price;
     const draftPrice = draft.prices[product.id] ?? committedPrice;
-    const priceEffect = (draftPrice / committedPrice) ** -1.35;
+    const priceEffect = forecastTracksPrice ? (draftPrice / committedPrice) ** -1.35 : 1;
     const committedForecast = state.demand_forecast?.[product.id] ?? product.base_daily_demand_kg;
     return [product.id, committedForecast * priceEffect];
   }));
@@ -110,6 +116,18 @@ export function Dashboard() {
         <Kpi label="Physics audit" value={balanceHealthy ? 'BALANCED' : 'DRIFT'} sub="green + roasted mass" trend={balanceHealthy ? 'up' : 'down'} />
       </section>
 
+      <section className="dash-card top-pricing-card">
+        <div className="card-header-row"><div><h3>Pricing & demand control</h3><p className="card-note">Price elasticity is applied to each SKU forecast before demand is realized.</p></div><button className="btn btn-small" onClick={() => setForecastTracksPrice(!forecastTracksPrice)}>{forecastTracksPrice ? 'Auto forecast' : 'Fixed forecast'}</button></div>
+        <div className="pricing-grid">
+          {catalog.products.map((product) => <div className="price-input" key={product.id}><label>{product.name}</label><input type="number" min={product.min_price} max={product.max_price} step={0.5} value={draft.prices[product.id] ?? product.base_price} onChange={(event) => setDraftValue('prices', product.id, bounded(event.target.value, product.min_price, product.max_price))} /><small>{kilos(forecastAtDraftPrices[product.id] * 7)} / week forecast</small></div>)}
+        </div>
+      </section>
+
+      <section className="dash-grid">
+        <article className="dash-card exceptions-card"><div className="card-header-row"><h3>Exceptions this run</h3><span className="status-pill">event tallies</span></div><div className="exception-grid"><Summary label="Late deliveries" value={String(exceptionCounts.late ?? 0)} /><Summary label="Quality events" value={String(exceptionCounts.quality ?? 0)} /><Summary label="No/low stock" value={String(exceptionCounts.no_stock ?? 0)} /><Summary label="Demand spikes" value={String(exceptionCounts.demand ?? 0)} /></div></article>
+        <article className="dash-card"><div className="card-header-row"><h3>Resource utilization · current week</h3><span className="status-pill">7-day tally</span></div><div className="summary-list"><Summary label="Roaster utilization" value={`${Math.min(100, ((state.stats?.roast_hours ?? 0) % 168) / 168 * 100).toFixed(0)}%`} /><Summary label="Roast days active" value={String(state.history.slice(-7).filter((day) => (day.roasted_kg ?? 0) > 0).length)} /><Summary label="Roaster labor" value={`${((state.stats?.roast_hours ?? 0) % 168).toFixed(1)} hr`} /><Summary label="Packaging labor" value={`${((state.stats?.packaging_hours ?? 0) % 168).toFixed(1)} hr`} /></div></article>
+      </section>
+
       <section className="dash-card cumulative-card">
         <div className="card-header-row">
           <div><h3>Cumulative production & exception stats</h3><p className="card-note">Totals since the start of this seeded run.</p></div>
@@ -143,7 +161,7 @@ export function Dashboard() {
         </div>
         {planErrors.map((message) => <div className="plan-error" key={message}>{message}</div>)}
         <div className="decision-table">
-          <div className="decision-heading"><span>SKU</span><span>Demand/week</span><span>FG on hand</span><span>MO output</span><span>Raw need</span><span>Coverage</span></div>
+          <div className="decision-heading"><span>SKU</span><span>Demand/week</span><span>Trend A/F</span><span>FG on hand</span><span>MO output</span><span>Raw need</span><span>Coverage</span></div>
           {catalog.products.map((product) => {
             const forecast = forecastAtDraftPrices[product.id];
             const ready = state.roasted_inventory[product.id];
@@ -155,6 +173,7 @@ export function Dashboard() {
               <div className="decision-row" key={product.id}>
                 <strong>{product.name}</strong>
                 <span>{kilos(weeklyDemand)}</span>
+                <span className="demand-sparkline"><ResponsiveContainer width="100%" height={32}><LineChart data={state.history.slice(-14).map((day) => ({ actual: day.demand_kg, forecast: (day.forecast?.[product.id] ?? forecast) }))}><Line type="monotone" dataKey="actual" stroke="#f59e0b" dot={false} strokeWidth={1.5} /><Line type="monotone" dataKey="forecast" stroke="#60a5fa" dot={false} strokeWidth={1.5} /></LineChart></ResponsiveContainer></span>
                 <span>{kilos(ready)}</span>
                 <span>{kilos(moRaw * expectedYield)}</span>
                 <span>{kilos(moRaw)}</span>
