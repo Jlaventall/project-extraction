@@ -90,6 +90,7 @@ source .venv/bin/activate
 pytest
 python -m coffeesim.cli --days 90 --seed 42
 python -m coffeesim.cli --benchmark --days 90 --seed 42 --output-dir benchmark-output
+python -m pip install -e '.[multiagent]'  # optional PettingZoo adapter
 python - <<'PY'
 from gymnasium.utils.env_checker import check_env
 from coffeesim.envs import CoffeeRoasteryEnv

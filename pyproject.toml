@@ -25,6 +25,9 @@ dev = [
 rl = [
   "stable-baselines3>=2.6",
 ]
+multiagent = [
+  "pettingzoo>=1.24",
+]
 
 [project.scripts]
 coffeesim = "coffeesim.cli:main"
@@ -39,4 +42,3 @@ addopts = "-q"
 
 [tool.coverage.run]
 source = ["coffeesim"]
-
