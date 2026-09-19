@@ -28,6 +28,7 @@ class CoffeeParallelEnv(ParallelEnv):
         self.possible_agents = ["procurement", "roastery", "pricing"]
         self.agents = list(self.possible_agents)
         self._gym = CoffeeRoasteryEnv(self.scenario, render_mode=render_mode)
+        self._previous_ledger_totals: dict[str, float] = {}
         self.observation_spaces = {
             agent: spaces.Dict({**self._gym.observation_space.spaces, "role": spaces.Box(0.0, 1.0, (3,), dtype=np.float32)})
             for agent in self.possible_agents
@@ -46,6 +47,7 @@ class CoffeeParallelEnv(ParallelEnv):
 
     def reset(self, seed: int | None = None, options: dict[str, Any] | None = None):
         observation, info = self._gym.reset(seed=seed, options=options)
+        self._previous_ledger_totals = {}
         self.agents = list(self.possible_agents)
         observations = {agent: self._role_observation(agent, observation) for agent in self.agents}
         return observations, {agent: dict(info) for agent in self.agents}
@@ -64,10 +66,13 @@ class CoffeeParallelEnv(ParallelEnv):
             self.agents = []
         observations = {agent: self._role_observation(agent, observation) for agent in self.agents}
         daily = info.get("daily", {})
+        totals = info.get("raw", {}).get("ledger_totals", {})
+        delta = {key: float(totals.get(key, 0.0)) - float(self._previous_ledger_totals.get(key, 0.0)) for key in set(totals) | set(self._previous_ledger_totals)}
+        self._previous_ledger_totals = dict(totals)
         role_rewards = {
-            "procurement": -float(daily.get("cash_change", 0.0)) if daily.get("cash_change", 0.0) < 0 else float(daily.get("cash_change", 0.0)) * 0.1,
-            "roastery": float(daily.get("roasted_kg", 0.0)) - float(daily.get("downtime_hours", 0.0)) * 2.0,
-            "pricing": float(daily.get("revenue", 0.0)) - float(daily.get("lost_kg", 0.0)) * 9.0,
+            "procurement": delta.get("procurement", 0.0) - abs(delta.get("overflow_loss", 0.0)) - abs(delta.get("holding_cost", 0.0)) * 0.1,
+            "roastery": float(daily.get("roasted_kg", 0.0)) * 2.0 - float(daily.get("downtime_hours", 0.0)) * 2.0 + delta.get("roast_energy", 0.0),
+            "pricing": delta.get("sales", 0.0) + delta.get("cogs", 0.0) + delta.get("backorder_penalty", 0.0) + delta.get("lost_sale", 0.0),
         }
         rewards = {agent: role_rewards[agent] / self._gym.reward_scale for agent in self.agents}
         terminations = {agent: terminated for agent in self.possible_agents}
