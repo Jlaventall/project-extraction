@@ -622,7 +622,16 @@ class CoffeeWorld:
         # Standing POs are released at the start of each simulated week. The
         # master roast schedule is spread across seven operating days and is
         # still bounded by the roaster queue and available green stock.
-        if self.standing_green_orders or self.standing_roast_targets:
+        if action.manual_commit:
+            action = WorldAction(
+                green_orders=self.standing_green_orders,
+                roast_targets={sku: qty / 7.0 for sku, qty in self.standing_roast_targets.items()},
+                prices=action.prices,
+                weekly_green_orders=self.standing_green_orders,
+                weekly_roast_targets=self.standing_roast_targets,
+                manual_commit=True,
+            )
+        elif self.standing_green_orders or self.standing_roast_targets:
             action = WorldAction(
                 green_orders=(self.standing_green_orders if self.day % 7 == 0 else {}),
                 roast_targets={sku: qty / 7.0 for sku, qty in self.standing_roast_targets.items()},

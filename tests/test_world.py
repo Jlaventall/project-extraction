@@ -72,6 +72,22 @@ def test_lot_rounding_forms_order_without_exception_event() -> None:
     assert not any("rounded" in event["message"].lower() for event in world.all_event_log)
 
 
+def test_manual_weekly_commit_releases_each_click() -> None:
+    world = CoffeeWorld(default_scenario(14), seed=42)
+    action = WorldAction(
+        weekly_green_orders={"colombia": 50.0, "ethiopia": 35.0},
+        weekly_roast_targets={"house": 35.0},
+        manual_commit=True,
+    )
+    world.step(action)
+    first_cash = world.ledger.cash
+    first_orders = len(world.purchase_orders)
+    world.step(action)
+
+    assert len(world.purchase_orders) > first_orders
+    assert world.ledger.cash < first_cash
+
+
 def test_roasting_conserves_mass_and_applies_shrinkage() -> None:
     world = CoffeeWorld(default_scenario(7), seed=4)
     action = neutral_action(world)

@@ -59,6 +59,7 @@ class WorldAction:
     # Weekly master-schedule inputs. The engine expands these into daily work.
     weekly_green_orders: dict[str, float] = field(default_factory=dict)
     weekly_roast_targets: dict[str, float] = field(default_factory=dict)
+    manual_commit: bool = False
 
     @classmethod
     def from_mapping(cls, value: dict[str, Any] | None) -> "WorldAction":
@@ -69,4 +70,5 @@ class WorldAction:
             prices={str(k): float(v) for k, v in value.get("prices", {}).items()},
             weekly_green_orders={str(k): float(v) for k, v in value.get("weekly_green_orders", {}).items()},
             weekly_roast_targets={str(k): float(v) for k, v in value.get("weekly_roast_targets", {}).items()},
+            manual_commit=bool(value.get("manual_commit", False)),
         )

@@ -143,6 +143,7 @@ async def step_game(game_id: str, request: StepRequest) -> dict[str, Any]:
                 prices=request.prices,
                 weekly_green_orders=request.weekly_green_orders,
                 weekly_roast_targets=request.weekly_roast_targets,
+                manual_commit=True,
             )
         try:
             state, reward, terminated, truncated, info = world.step(action)
