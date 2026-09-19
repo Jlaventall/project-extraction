@@ -73,6 +73,11 @@ export function Dashboard() {
     orderCost > state.credit_available + 0.01 ? `Orders exceed available liquidity by ${money(orderCost - state.credit_available)}` : '',
     plannedRoastInput > roastQueueRoom + 0.01 ? `Today's roast release exceeds queue room by ${kilos(plannedRoastInput - roastQueueRoom)}` : '',
     plannedRoastInput > greenTotal + 0.01 ? `Today's roast release needs ${kilos(plannedRoastInput - greenTotal)} more green coffee currently on hand` : '',
+    ...catalog.suppliers.map((supplier) => {
+      const need = bomNeedByRaw[supplier.id] ?? 0;
+      const cover = (state.green_inventory[supplier.id] ?? 0) + (state.inbound_green[supplier.id] ?? 0) + (draft.weekly_green_orders[supplier.id] ?? 0);
+      return need > cover + 0.01 ? `${supplier.name} BOM shortage: ${kilos(need - cover)} uncovered for this MO` : '';
+    }),
   ].filter(Boolean);
   const balanceHealthy = Math.abs(state.mass_balance.green_error_kg) < 1e-6
     && Math.abs(state.mass_balance.roasted_error_kg) < 1e-6;
