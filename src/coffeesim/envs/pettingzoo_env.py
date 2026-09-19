@@ -28,7 +28,10 @@ class CoffeeParallelEnv(ParallelEnv):
         self.possible_agents = ["procurement", "roastery", "pricing"]
         self.agents = list(self.possible_agents)
         self._gym = CoffeeRoasteryEnv(self.scenario, render_mode=render_mode)
-        self.observation_spaces = {agent: self._gym.observation_space for agent in self.possible_agents}
+        self.observation_spaces = {
+            agent: spaces.Dict({**self._gym.observation_space.spaces, "role": spaces.Box(0.0, 1.0, (3,), dtype=np.float32)})
+            for agent in self.possible_agents
+        }
         self.action_spaces = {
             "procurement": spaces.Box(0.0, 1.0, (len(self.scenario.suppliers),), dtype=np.float32),
             "roastery": spaces.Box(0.0, 1.0, (len(self.scenario.products),), dtype=np.float32),
@@ -44,7 +47,7 @@ class CoffeeParallelEnv(ParallelEnv):
     def reset(self, seed: int | None = None, options: dict[str, Any] | None = None):
         observation, info = self._gym.reset(seed=seed, options=options)
         self.agents = list(self.possible_agents)
-        observations = {agent: observation.copy() for agent in self.agents}
+        observations = {agent: self._role_observation(agent, observation) for agent in self.agents}
         return observations, {agent: dict(info) for agent in self.agents}
 
     def step(self, actions: dict[str, np.ndarray]):
@@ -59,12 +62,24 @@ class CoffeeParallelEnv(ParallelEnv):
         observation, reward, terminated, truncated, info = self._gym.step(combined)
         if terminated or truncated:
             self.agents = []
-        observations = {agent: observation.copy() for agent in self.agents}
-        rewards = {agent: reward for agent in self.agents}
+        observations = {agent: self._role_observation(agent, observation) for agent in self.agents}
+        daily = info.get("daily", {})
+        role_rewards = {
+            "procurement": -float(daily.get("cash_change", 0.0)) if daily.get("cash_change", 0.0) < 0 else float(daily.get("cash_change", 0.0)) * 0.1,
+            "roastery": float(daily.get("roasted_kg", 0.0)) - float(daily.get("downtime_hours", 0.0)) * 2.0,
+            "pricing": float(daily.get("revenue", 0.0)) - float(daily.get("lost_kg", 0.0)) * 9.0,
+        }
+        rewards = {agent: role_rewards[agent] / self._gym.reward_scale for agent in self.agents}
         terminations = {agent: terminated for agent in self.possible_agents}
         truncations = {agent: truncated for agent in self.possible_agents}
         infos = {agent: dict(info) for agent in self.possible_agents}
         return observations, rewards, terminations, truncations, infos
+
+    @staticmethod
+    def _role_observation(agent: str, observation: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+        role = np.zeros(3, dtype=np.float32)
+        role[(["procurement", "roastery", "pricing"].index(agent))] = 1.0
+        return {**observation, "role": role}
 
     def state(self) -> dict[str, Any]:
         if self._gym.world is None:
