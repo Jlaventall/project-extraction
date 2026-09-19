@@ -114,11 +114,13 @@ class CoffeeWorld:
             self.stats["roasted_opening"] += quantity
 
     def _log(self, event_type: str, message: str, **data: Any) -> None:
+        category = "demand" if event_type in {"demand_spike", "stockout", "lost_sale"} else "supply"
         self.event_log.append(
             {
                 "time": round(float(self.env.now), 4),
                 "day": self.day + 1,
                 "type": event_type,
+                "category": category,
                 "message": message,
                 **data,
             }
@@ -222,7 +224,7 @@ class CoffeeWorld:
             liquidity -= cost
             capacity_remaining -= quantity
             self.env.process(self._delivery_process(order, supplier, lead))
-            self._log("purchase_order", f"Ordered {quantity:.1f} kg from {supplier.name}", order_id=order.order_id)
+            self._log("purchase_order", f"Ordered {quantity:.1f} kg from {supplier.name}", order_id=order.order_id, quantity_kg=round(quantity, 3), unit_cost=supplier.unit_cost)
 
     def _delivery_process(self, order: PurchaseOrder, supplier: Supplier, lead: float):
         yield self.env.timeout(lead)
@@ -266,7 +268,7 @@ class CoffeeWorld:
             )
             self.stats["green_spoiled"] += overflow
         order.status = "delivered"
-        self._log("delivery", f"Received {accepted:.1f} kg from {supplier.name}", order_id=order.order_id)
+        self._log("delivery", f"Received {accepted:.1f} kg from {supplier.name}", order_id=order.order_id, quantity_kg=round(accepted, 3))
 
     def _schedule_roasts(self, action: WorldAction, warnings: list[str]) -> None:
         queued_input = sum(
@@ -296,7 +298,7 @@ class CoffeeWorld:
             self.roast_jobs.append(job)
             self.env.process(self._roast_process(job, quality))
             queued_input += taken
-            self._log("roast_queued", f"Queued {taken:.1f} kg {sku} roast", job_id=job.job_id)
+            self._log("roast_queued", f"Queued {taken:.1f} kg {sku} roast", job_id=job.job_id, quantity_kg=round(taken, 3), mo_id=job.job_id)
 
     def _roast_process(self, job: RoastJob, green_quality: float):
         product = self.products[job.sku]
@@ -339,6 +341,7 @@ class CoffeeWorld:
                     f"{job.sku} roast quality hold reduced sellable output to {output:.1f} kg",
                     job_id=job.job_id,
                     yield_factor=round(defect_factor, 4),
+                    quantity_kg=round(output, 3),
                 )
             energy = job.green_input_kg * self.scenario.energy_cost_per_green_kg
             self.ledger.post(
@@ -387,6 +390,7 @@ class CoffeeWorld:
                 "roast_complete",
                 f"Completed {job.sku}: {output:.1f} kg ({shrinkage:.1%} shrink)",
                 job_id=job.job_id,
+                quantity_kg=round(output, 3),
             )
             self._release_backorders(job.sku)
 
@@ -606,6 +610,16 @@ class CoffeeWorld:
             "cash": round(self.ledger.cash, 3),
             "warnings": list(warnings),
             "forecast": self._expected_demand_forecast(),
+            "eod_tally": {
+                "sales": round(self._daily["revenue"], 3),
+                "inventory_value": round(self.inventory.value(), 3),
+                "roaster_utilization": round(min(1.0, self._daily["roast_hours"] / 24.0), 4),
+                "packaging_utilization": round(min(1.0, self._daily["packaging_hours"] / 24.0), 4),
+                "roast_labor_hours": round(self._daily["roast_hours"], 3),
+                "packaging_labor_hours": round(self._daily["packaging_hours"], 3),
+                "cash": round(self.ledger.cash, 3),
+                "reward": round(reward, 3),
+            },
         }
         self.daily_history.append(daily)
         self.action_history.append(

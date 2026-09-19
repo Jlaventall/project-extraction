@@ -17,7 +17,7 @@ export function EventPanel({ events }: { events: SimEvent[] }) {
           <div className="event-header">
             <div className="event-title-row">
               <span className="event-freq freq-common">T+{event.time.toFixed(2)}</span>
-              <h4>{event.type.replaceAll('_', ' ')}</h4>
+              <h4><span className={`event-category ${event.category ?? 'supply'}`}>{event.category ?? 'supply'}</span>{event.type.replaceAll('_', ' ')}</h4>
             </div>
           </div>
           <p className="event-desc">{event.message}</p>

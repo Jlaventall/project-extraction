@@ -54,12 +54,18 @@ export interface DailyMetric {
   demand_by_sku?: Record<string, number>;
   roast_hours?: number;
   packaging_hours?: number;
+  eod_tally?: {
+    sales: number; inventory_value: number; roaster_utilization: number;
+    packaging_utilization: number; roast_labor_hours: number;
+    packaging_labor_hours: number; cash: number; reward: number;
+  };
 }
 
 export interface SimEvent {
   time: number;
   day: number;
   type: string;
+  category?: 'supply' | 'demand';
   message: string;
   [key: string]: unknown;
 }
