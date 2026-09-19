@@ -85,6 +85,17 @@ class CoffeeWorld:
     def _next_id(self, prefix: str) -> str:
         return f"{prefix}-{next(self._ids):06d}"
 
+    def _labor_capacity_ratio(self) -> float:
+        available = (self.scenario.regular_workers + self.scenario.temporary_workers) * 8.0 * self.scenario.shifts
+        required = self.scenario.minimum_workers_per_shift * 8.0 * self.scenario.shifts
+        return min(1.0, available / required) if required else 1.0
+
+    def _roaster_capacity(self) -> float:
+        return self.scenario.roaster_capacity_kg_per_day * self._labor_capacity_ratio()
+
+    def _packaging_capacity(self) -> float:
+        return self.scenario.packaging_capacity_kg_per_day * self._labor_capacity_ratio()
+
     def _initialize_inventory(self) -> None:
         per_supplier = self.scenario.starting_green_kg / max(1, len(self.suppliers))
         for supplier in self.suppliers.values():
@@ -166,7 +177,7 @@ class CoffeeWorld:
             lot = max(1.0, self.products[sku].lot_size_kg)
             rounded = round(raw / lot) * lot
             raw = rounded
-            clipped = min(raw, self.scenario.roaster_capacity_kg_per_day * 1.5)
+            clipped = min(raw, self._roaster_capacity() * 1.5)
             if clipped != raw:
                 warnings.append(f"{sku} roast target clipped to scheduling limit")
             roasts[sku] = clipped
@@ -180,7 +191,7 @@ class CoffeeWorld:
                 raw = prices[sku]
             if not math.isfinite(raw):
                 raw = prices[sku]
-            prices[sku] = min(product.max_price, max(product.min_price, raw))
+            prices[sku] = max(0.01, raw)
 
         return WorldAction(orders, roasts, prices), warnings
 
@@ -296,7 +307,7 @@ class CoffeeWorld:
         queued_input = sum(
             job.green_input_kg for job in self.roast_jobs if job.status in {"queued", "running"}
         )
-        queue_limit = self.scenario.roaster_capacity_kg_per_day * 2.0
+        queue_limit = self._roaster_capacity() * 2.0
         for sku, requested in action.roast_targets.items():
             if requested <= 0:
                 continue
@@ -348,7 +359,7 @@ class CoffeeWorld:
             if self.last_roast_profile not in {None, product.roast_profile}:
                 yield self.env.timeout(self.scenario.roast_setup_hours / 24.0)
                 self._daily["changeovers"] += 1
-            duration = max(0.01, job.green_input_kg / self.scenario.roaster_capacity_kg_per_day)
+            duration = max(0.01, job.green_input_kg / self._roaster_capacity())
             self.stats["roast_hours"] += duration * 24.0
             self._daily["roast_hours"] += duration * 24.0
             yield self.env.timeout(duration / 2.0)
@@ -512,7 +523,7 @@ class CoffeeWorld:
     def _package_process(self, sku: str, quantity: float, unit_price: float, inventory_cost: float):
         with self.packager.request() as request:
             yield request
-            duration = quantity / self.scenario.packaging_capacity_kg_per_day
+            duration = quantity / self._packaging_capacity()
             self.stats["packaging_hours"] += duration * 24.0
             self._daily["packaging_hours"] += duration * 24.0
             yield self.env.timeout(max(0.002, duration))
@@ -573,7 +584,10 @@ class CoffeeWorld:
                 cash=False,
             )
         self.ledger.post(now, "fixed_cost", -self.scenario.daily_fixed_cost)
-        self.ledger.post(now, "labor", -self.scenario.daily_labor_cost)
+        regular_hours = self.scenario.regular_workers * self.scenario.shifts * 8.0
+        temporary_hours = self.scenario.temporary_workers * self.scenario.shifts * 8.0
+        labor_cost = (regular_hours * self.scenario.labor_hourly_cost) + (temporary_hours * self.scenario.labor_hourly_cost * self.scenario.temporary_labor_premium)
+        self.ledger.post(now, "labor", -labor_cost)
         held = self.inventory.quantity()
         self.ledger.post(
             now,
@@ -795,6 +809,16 @@ class CoffeeWorld:
             "demand_forecast": self._expected_demand_forecast(),
             "procurement_coverage_days": self.scenario.procurement_coverage_days,
             "finished_goods_coverage_days": self.scenario.finished_goods_coverage_days,
+            "labor_policy": {
+                "regular_workers": self.scenario.regular_workers,
+                "maximum_workers": self.scenario.maximum_workers,
+                "temporary_workers": self.scenario.temporary_workers,
+                "shifts": self.scenario.shifts,
+                "minimum_workers_per_shift": self.scenario.minimum_workers_per_shift,
+                "temporary_labor_premium": self.scenario.temporary_labor_premium,
+                "roles": dict(self.scenario.labor_roles),
+                "capacity_ratio": round(self._labor_capacity_ratio(), 3),
+            },
             "material_plan": material_plan,
             "standing_plan": {
                 "weekly_green_orders": dict(self.standing_green_orders),

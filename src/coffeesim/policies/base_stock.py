@@ -44,8 +44,10 @@ class BaseStockPolicy:
             target = state.get("demand_forecast", {}).get(product.id, product.base_daily_demand_kg) * self.scenario.finished_goods_coverage_days + backlog
             roasts[product.id] = max(0.0, target - on_hand) / expected_yield
             total_target += roasts[product.id]
-        if total_target > self.scenario.roaster_capacity_kg_per_day:
-            scale = self.scenario.roaster_capacity_kg_per_day / total_target
+        labor_ratio = min(1.0, ((self.scenario.regular_workers + self.scenario.temporary_workers) * 8.0 * self.scenario.shifts) / max(1.0, self.scenario.minimum_workers_per_shift * 8.0 * self.scenario.shifts))
+        effective_capacity = self.scenario.roaster_capacity_kg_per_day * labor_ratio
+        if total_target > effective_capacity:
+            scale = effective_capacity / total_target
             roasts = {key: value * scale for key, value in roasts.items()}
         return WorldAction(
             weekly_green_orders=orders,

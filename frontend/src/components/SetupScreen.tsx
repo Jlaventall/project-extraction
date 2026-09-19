@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 
-type ScenarioConfig = { seed: number; horizon: number; coverageDays: number; finishedGoodsCoverageDays: number; mode: 'live' | 'benchmark' | 'pettingzoo'; strategy: string; initialPrices: Record<string, number>; bomOverrides: Record<string, Record<string, number>> };
+type ScenarioConfig = { seed: number; horizon: number; coverageDays: number; finishedGoodsCoverageDays: number; regularWorkers: number; shifts: number; temporaryWorkers: number; laborRoles: Record<string, number>; mode: 'live' | 'benchmark' | 'pettingzoo'; strategy: string; initialPrices: Record<string, number>; bomOverrides: Record<string, Record<string, number>> };
 
 export function SetupScreen() {
   const { catalog, fetchCatalog, startGame, loading, error } = useGameStore();
@@ -9,15 +9,19 @@ export function SetupScreen() {
   const [horizon, setHorizon] = useState(90);
   const [coverageDays, setCoverageDays] = useState(14);
   const [finishedGoodsCoverageDays, setFinishedGoodsCoverageDays] = useState(3);
+  const [regularWorkers, setRegularWorkers] = useState(4);
+  const [shifts, setShifts] = useState(1);
+  const [temporaryWorkers, setTemporaryWorkers] = useState(0);
+  const [laborRoles, setLaborRoles] = useState<Record<string, number>>({ roasting: 2, packaging: 1, quality: 1 });
   const [mode, setMode] = useState<'live' | 'benchmark' | 'pettingzoo'>('live');
   const [strategy, setStrategy] = useState('human_manual');
   const [initialPrices, setInitialPrices] = useState<Record<string, number>>({});
   const [bomOverrides, setBomOverrides] = useState<Record<string, Record<string, number>>>({});
   const exportScenario = () => {
-    const blob = new Blob([JSON.stringify({ format: 'coffeesim.scenario.v1', seed, horizon, coverageDays, finishedGoodsCoverageDays, mode, strategy, initialPrices, bomOverrides }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ format: 'coffeesim.scenario.v1', seed, horizon, coverageDays, finishedGoodsCoverageDays, regularWorkers, shifts, temporaryWorkers, laborRoles, mode, strategy, initialPrices, bomOverrides }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'coffeesim-scenario.json'; anchor.click(); URL.revokeObjectURL(url);
   };
-  const importScenario = (file: File) => { void file.text().then((text) => { const value = JSON.parse(text) as Partial<ScenarioConfig>; if (typeof value.seed === 'number') setSeed(value.seed); if (typeof value.horizon === 'number') setHorizon(value.horizon); if (typeof value.coverageDays === 'number') setCoverageDays(Math.max(1, Math.min(60, value.coverageDays))); if (typeof value.finishedGoodsCoverageDays === 'number') setFinishedGoodsCoverageDays(Math.max(1, Math.min(30, value.finishedGoodsCoverageDays))); if (value.mode) setMode(value.mode); if (typeof value.strategy === 'string') setStrategy(value.strategy); if (value.initialPrices) setInitialPrices(value.initialPrices); if (value.bomOverrides) setBomOverrides(value.bomOverrides); }).catch(() => undefined); };
+  const importScenario = (file: File) => { void file.text().then((text) => { const value = JSON.parse(text) as Partial<ScenarioConfig>; if (typeof value.seed === 'number') setSeed(value.seed); if (typeof value.horizon === 'number') setHorizon(value.horizon); if (typeof value.coverageDays === 'number') setCoverageDays(Math.max(1, Math.min(60, value.coverageDays))); if (typeof value.finishedGoodsCoverageDays === 'number') setFinishedGoodsCoverageDays(Math.max(1, Math.min(30, value.finishedGoodsCoverageDays))); if (typeof value.regularWorkers === 'number') setRegularWorkers(Math.max(0, Math.min(12, value.regularWorkers))); if (typeof value.shifts === 'number') setShifts(Math.max(1, Math.min(3, value.shifts))); if (typeof value.temporaryWorkers === 'number') setTemporaryWorkers(Math.max(0, Math.min(12, value.temporaryWorkers))); if (value.laborRoles) setLaborRoles(value.laborRoles); if (value.mode) setMode(value.mode); if (typeof value.strategy === 'string') setStrategy(value.strategy); if (value.initialPrices) setInitialPrices(value.initialPrices); if (value.bomOverrides) setBomOverrides(value.bomOverrides); }).catch(() => undefined); };
   const bomErrors = catalog?.products.flatMap((product) => {
     const recipe = bomOverrides[product.id] ?? Object.fromEntries((product.bom ?? []).map((item) => [item.raw_material_id, item.fraction]));
     const total = Object.values(recipe).reduce((sum, value) => sum + (Number(value) || 0), 0);
@@ -88,6 +92,17 @@ export function SetupScreen() {
           </label>
         </div>
       </section>
+      {catalog && <section className="staffing-panel init-panel">
+        <h3>Roasts</h3>
+        <p className="config-hint">Set each finished-good name, origin recipe, and USD price before the run. Demand responds elastically to price, including extreme values.</p>
+        <div className="bom-table"><div className="bom-heading"><span>Name</span><span>Price (USD/kg)</span><span>Origin recipe</span></div>{catalog.products.map((product) => <div className="bom-row" key={product.id}><strong>{product.name}</strong><CurrencyInput value={initialPrices[product.id] ?? product.base_price} minimum={0.01} maximum={1000000} onChange={(value) => setInitialPrices((current) => ({ ...current, [product.id]: value }))} /><span className="bom-inputs">{(product.bom ?? []).map((component) => <span key={component.raw_material_id}>{component.raw_material_id} {Math.round(component.fraction * 100)}%</span>)}</span></div>)}</div>
+      </section>}
+      {catalog && <section className="staffing-panel init-panel">
+        <h3>Labor & shifts</h3>
+        <p className="config-hint">Workers determine output capacity and labor margin. A single shift requires at least {catalog.defaults.minimum_workers_per_shift} workers; temporary labor costs {catalog.defaults.temporary_labor_premium.toFixed(2)}× the regular rate.</p>
+        <div className="manager-config"><label className="config-group"><span>Regular workers</span><input type="number" min={0} max={catalog.defaults.maximum_workers} step={1} value={regularWorkers} onChange={(event) => setRegularWorkers(Math.max(0, Math.min(catalog.defaults.maximum_workers, Math.round(Number(event.target.value) || 0))))} /></label><label className="config-group"><span>Shifts</span><input type="number" min={1} max={3} step={1} value={shifts} onChange={(event) => setShifts(Math.max(1, Math.min(3, Math.round(Number(event.target.value) || 1))))} /></label><label className="config-group"><span>Temporary workers</span><input type="number" min={0} max={catalog.defaults.maximum_workers} step={1} value={temporaryWorkers} onChange={(event) => setTemporaryWorkers(Math.max(0, Math.min(catalog.defaults.maximum_workers, Math.round(Number(event.target.value) || 0))))} /></label></div>
+        <div className="role-grid">{['roasting', 'packaging', 'quality'].map((role) => <label className="config-group" key={role}><span>{role} role workers</span><input type="number" min={0} max={catalog.defaults.maximum_workers} step={1} value={laborRoles[role] ?? 0} onChange={(event) => setLaborRoles((current) => ({ ...current, [role]: Math.max(0, Math.round(Number(event.target.value) || 0)) }))} /></label>)}</div>
+      </section>}
       <div className="scenario-actions"><button className="btn btn-small" onClick={exportScenario}>Export scenario</button><label className="btn btn-small">Import scenario<input type="file" accept="application/json" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) importScenario(file); }} /></label></div>
 
       {catalog && (
@@ -107,7 +122,7 @@ export function SetupScreen() {
       {catalog && <section className="staffing-panel init-panel">
         <h3>Initialization · finished goods & BOM</h3>
         <p className="config-hint">Recipes constrain which raw origins can satisfy each master roast order. Pricing can be refined in the live dashboard before commit.</p>
-        <div className="bom-table"><div className="bom-heading"><span>SKU</span><span>Initial price (USD/kg)</span><span>Editable BOM fractions</span></div>{catalog.products.map((product) => <div className="bom-row" key={product.id}><strong>{product.name}</strong><CurrencyInput value={initialPrices[product.id] ?? product.base_price} minimum={product.min_price} maximum={product.max_price} onChange={(value) => setInitialPrices((current) => ({ ...current, [product.id]: value }))} /><span className="bom-inputs">{(product.bom ?? []).map((component) => <label key={component.raw_material_id}>{component.raw_material_id}<input type="number" min={0} max={1} step={0.05} value={bomOverrides[product.id]?.[component.raw_material_id] ?? component.fraction} onChange={(event) => setBomOverrides((current) => ({ ...current, [product.id]: { ...(current[product.id] ?? Object.fromEntries((product.bom ?? []).map((item) => [item.raw_material_id, item.fraction]))), [component.raw_material_id]: Number(event.target.value) } }))} /></label>)}</span></div>)}</div>
+        <div className="bom-table"><div className="bom-heading"><span>SKU</span><span>Editable BOM fractions</span></div>{catalog.products.map((product) => <div className="bom-row bom-only-row" key={product.id}><strong>{product.name}</strong><span className="bom-inputs">{(product.bom ?? []).map((component) => <label key={component.raw_material_id}>{component.raw_material_id}<input type="number" min={0} max={1} step={0.05} value={bomOverrides[product.id]?.[component.raw_material_id] ?? component.fraction} onChange={(event) => setBomOverrides((current) => ({ ...current, [product.id]: { ...(current[product.id] ?? Object.fromEntries((product.bom ?? []).map((item) => [item.raw_material_id, item.fraction]))), [component.raw_material_id]: Number(event.target.value) } }))} /></label>)}</span></div>)}</div>
       </section>}
       {error && <div className="api-error">API error: {error}. Start the Python server on port 8000.</div>}
       {bomErrors.map((message) => <div className="sim-warning" key={message}>{message}</div>)}
@@ -115,7 +130,7 @@ export function SetupScreen() {
         <button
           className="btn btn-primary btn-start"
           disabled={loading || !catalog || bomErrors.length > 0}
-          onClick={() => void startGame(seed, horizon, mode, strategy, initialPrices, bomOverrides, coverageDays, finishedGoodsCoverageDays)}
+          onClick={() => void startGame(seed, horizon, mode, strategy, initialPrices, bomOverrides, coverageDays, finishedGoodsCoverageDays, regularWorkers, shifts, temporaryWorkers, laborRoles)}
         >
           {loading ? 'Starting engine…' : 'Start roastery'}
         </button>

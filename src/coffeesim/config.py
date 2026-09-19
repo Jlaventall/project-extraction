@@ -54,6 +54,14 @@ class Scenario:
     roast_setup_hours: float = 1.0
     daily_fixed_cost: float = 380.0
     daily_labor_cost: float = 620.0
+    regular_workers: int = 4
+    maximum_workers: int = 12
+    shifts: int = 1
+    minimum_workers_per_shift: int = 3
+    temporary_workers: int = 0
+    temporary_labor_premium: float = 1.5
+    labor_hourly_cost: float = 19.375
+    labor_roles: tuple[tuple[str, int], ...] = (("roasting", 2), ("packaging", 1), ("quality", 1))
     holding_cost_per_kg_day: float = 0.035
     backorder_penalty_per_kg_day: float = 4.0
     lost_sale_penalty_per_kg: float = 9.0
@@ -79,6 +87,10 @@ class Scenario:
         if self.horizon_days < 1: errors.append("horizon_days must be positive")
         if self.procurement_coverage_days <= 0: errors.append("procurement_coverage_days must be positive")
         if self.finished_goods_coverage_days <= 0: errors.append("finished_goods_coverage_days must be positive")
+        if self.regular_workers < 0 or self.maximum_workers < 1 or self.regular_workers > self.maximum_workers: errors.append("invalid regular worker count")
+        if self.shifts < 1 or self.shifts > 3: errors.append("shifts must be between 1 and 3")
+        if self.minimum_workers_per_shift < 1: errors.append("minimum_workers_per_shift must be positive")
+        if self.temporary_workers < 0 or self.temporary_labor_premium < 1 or self.labor_hourly_cost <= 0: errors.append("invalid labor settings")
         if self.green_capacity_kg <= 0 or self.roasted_capacity_kg <= 0: errors.append("inventory capacities must be positive")
         if self.roaster_capacity_kg_per_day <= 0 or self.packaging_capacity_kg_per_day <= 0: errors.append("resource capacities must be positive")
         for product in self.products:

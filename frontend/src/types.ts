@@ -39,6 +39,13 @@ export interface Catalog {
     roaster_capacity_kg_per_day: number;
     procurement_coverage_days: number;
     finished_goods_coverage_days: number;
+    regular_workers: number;
+    maximum_workers: number;
+    shifts: number;
+    minimum_workers_per_shift: number;
+    temporary_workers: number;
+    temporary_labor_premium: number;
+    labor_roles: Record<string, number>;
   };
 }
 
@@ -113,6 +120,11 @@ export interface GameSnapshot {
   demand_forecast: Record<string, number>;
   procurement_coverage_days?: number;
   finished_goods_coverage_days?: number;
+  labor_policy?: {
+    regular_workers: number; maximum_workers: number; temporary_workers: number;
+    shifts: number; minimum_workers_per_shift: number; temporary_labor_premium: number;
+    roles: Record<string, number>; capacity_ratio: number;
+  };
   material_plan?: Record<string, {
     on_hand_kg: number; inbound_kg: number; target_kg: number; gap_kg: number;
     estimated_cost: number; lead_days: number;

@@ -10,7 +10,7 @@ const kilos = (value: number) => `${value.toFixed(1)} kg`;
 const sum = (values: Record<string, number>) => Object.values(values).reduce((total, value) => total + value, 0);
 
 export function Dashboard() {
-  const [forecastTracksPrice, setForecastTracksPrice] = useState(true);
+  const forecastTracksPrice = true;
   const [activeTab, setActiveTab] = useState<'init' | 'control' | 'history'>('control');
   const {
     phase, catalog, state, gameId, draft, loading, error, autoAdvance, runHistory,
@@ -159,13 +159,6 @@ export function Dashboard() {
         <div className="finished-policy-grid">{catalog.products.map((product) => { const target = (state.demand_forecast?.[product.id] ?? product.base_daily_demand_kg) * (state.finished_goods_coverage_days ?? 3); return <div className="policy-chip" key={product.id}><strong>{product.name}</strong><span>On hand {kilos(state.roasted_inventory[product.id] ?? 0)}</span><span>Target {kilos(target)}</span></div>; })}</div>
       </section>}
 
-      {activeTab === 'control' && <section className="dash-card top-pricing-card">
-        <div className="card-header-row"><div><h3>Pricing & demand control</h3><p className="card-note">Price elasticity is applied to each SKU forecast before demand is realized.</p></div><button className="btn btn-small" onClick={() => setForecastTracksPrice(!forecastTracksPrice)}>{forecastTracksPrice ? 'Auto forecast' : 'Fixed forecast'}</button></div>
-        <div className="pricing-grid">
-          {catalog.products.map((product) => <div className="price-input" key={product.id}><label>{product.name}</label><CurrencyInput value={draft.prices[product.id] ?? product.base_price} minimum={product.min_price} maximum={product.max_price} onChange={(value) => setDraftValue('prices', product.id, value)} /><small>{kilos(forecastAtDraftPrices[product.id] * 7)} / week forecast</small></div>)}
-        </div>
-      </section>}
-
       {activeTab === 'control' && <section className="dash-grid">
         <article className="dash-card exceptions-card"><div className="card-header-row"><h3>Exceptions this run</h3><span className="status-pill">event tallies</span></div><div className="exception-grid"><Summary label="Late deliveries" value={String(exceptionCounts.late ?? 0)} /><Summary label="Quality events" value={String(exceptionCounts.quality ?? 0)} /><Summary label="No/low stock" value={String(exceptionCounts.no_stock ?? 0)} /><Summary label="Demand spikes" value={String(exceptionCounts.demand ?? 0)} /></div></article>
         <article className="dash-card"><div className="card-header-row"><h3>Resource utilization · current week</h3><span className="status-pill">7-day tally</span></div><div className="summary-list"><Summary label="Roaster utilization" value={`${Math.min(100, ((state.stats?.roast_hours ?? 0) % 168) / 168 * 100).toFixed(0)}%`} /><Summary label="Roast days active" value={String(state.history.slice(-7).filter((day) => (day.roasted_kg ?? 0) > 0).length)} /><Summary label="Roaster labor" value={`${((state.stats?.roast_hours ?? 0) % 168).toFixed(1)} hr`} /><Summary label="Packaging labor" value={`${((state.stats?.packaging_hours ?? 0) % 168).toFixed(1)} hr`} /></div></article>
@@ -274,24 +267,9 @@ export function Dashboard() {
           </div>
         </article>
 
-        <article className="dash-card controls-card">
-          <div className="card-header-row">
-            <h3>Wholesale pricing</h3>
-            <span className="status-pill">$/kg</span>
-          </div>
-          <div className="pricing-grid">
-            {catalog.products.map((product) => (
-              <div className="price-input" key={product.id}>
-                  <label>{product.name} · USD/kg</label>
-                <CurrencyInput value={draft.prices[product.id] ?? product.base_price} minimum={product.min_price} maximum={product.max_price} onChange={(value) => setDraftValue('prices', product.id, value)} />
-              </div>
-            ))}
-          </div>
-        </article>
-
       </section>}
 
-      {activeTab === 'history' && <section className="chart-card dash-card">
+      {activeTab === 'control' && <section className="chart-card dash-card">
         <div className="card-header-row">
           <h3>Operating trace</h3>
           <span className="status-pill">cash · demand · service</span>
@@ -381,10 +359,6 @@ function PlanMeter({ value, target, label }: { value: number; target: number; la
   );
 }
 
-function CurrencyInput({ value, minimum, maximum, onChange }: { value: number; minimum: number; maximum: number; onChange: (value: number) => void }) {
-  return <span className="currency-input"><span>$</span><input type="text" inputMode="decimal" value={value.toFixed(2)} onChange={(event) => onChange(roundedBounded(event.target.value, minimum, maximum, 2))} /></span>;
-}
-
 function bounded(raw: string, minimum: number, maximum: number) {
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return minimum;
@@ -395,10 +369,4 @@ function lotBounded(raw: string, minimum: number, maximum: number, lotSize: numb
   const value = bounded(raw, minimum, maximum);
   const lot = Math.max(1, lotSize);
   return Math.min(maximum, Math.max(minimum, Math.round(value / lot) * lot));
-}
-
-function roundedBounded(raw: string, minimum: number, maximum: number, decimals: number) {
-  const value = bounded(raw, minimum, maximum);
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
 }

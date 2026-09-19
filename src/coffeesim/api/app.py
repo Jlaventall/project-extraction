@@ -26,6 +26,10 @@ class CreateGameRequest(BaseModel):
     bom_overrides: dict[str, dict[str, float]] = Field(default_factory=dict)
     coverage_days: float = Field(default=14.0, ge=1.0, le=60.0)
     finished_goods_coverage_days: float = Field(default=3.0, ge=1.0, le=30.0)
+    regular_workers: int = Field(default=4, ge=0, le=12)
+    shifts: int = Field(default=1, ge=1, le=3)
+    temporary_workers: int = Field(default=0, ge=0, le=12)
+    labor_roles: dict[str, int] = Field(default_factory=dict)
 
 
 class StepRequest(BaseModel):
@@ -75,6 +79,13 @@ async def catalog() -> dict[str, Any]:
             "starting_green_kg": scenario.starting_green_kg,
             "procurement_coverage_days": scenario.procurement_coverage_days,
             "finished_goods_coverage_days": scenario.finished_goods_coverage_days,
+            "regular_workers": scenario.regular_workers,
+            "maximum_workers": scenario.maximum_workers,
+            "shifts": scenario.shifts,
+            "minimum_workers_per_shift": scenario.minimum_workers_per_shift,
+            "temporary_workers": scenario.temporary_workers,
+            "temporary_labor_premium": scenario.temporary_labor_premium,
+            "labor_roles": dict(scenario.labor_roles),
             "credit_limit": scenario.credit_limit,
             "roaster_capacity_kg_per_day": scenario.roaster_capacity_kg_per_day,
         },
@@ -86,7 +97,8 @@ async def catalog() -> dict[str, Any]:
 async def create_game(request: CreateGameRequest) -> dict[str, Any]:
     game_id = uuid.uuid4().hex[:12]
     scenario = default_scenario(request.horizon_days)
-    scenario = replace(scenario, procurement_coverage_days=request.coverage_days, finished_goods_coverage_days=request.finished_goods_coverage_days)
+    roles = tuple(sorted((key, max(0, int(value))) for key, value in request.labor_roles.items())) or scenario.labor_roles
+    scenario = replace(scenario, procurement_coverage_days=request.coverage_days, finished_goods_coverage_days=request.finished_goods_coverage_days, regular_workers=request.regular_workers, shifts=request.shifts, temporary_workers=request.temporary_workers, labor_roles=roles)
     if request.bom_overrides:
         products = []
         valid_raw = {supplier.id for supplier in scenario.suppliers}
@@ -105,7 +117,9 @@ async def create_game(request: CreateGameRequest) -> dict[str, Any]:
     world.simulation_strategy = request.strategy
     for product in world.scenario.products:
         if product.id in request.initial_prices:
-            world.prices[product.id] = min(product.max_price, max(product.min_price, float(request.initial_prices[product.id])))
+            value = float(request.initial_prices[product.id])
+            if value > 0:
+                world.prices[product.id] = value
     game_store.create(game_id, world)
     state = world.snapshot()
     return {"game_id": game_id, "state": state, "simulation_mode": request.mode, "strategy": request.strategy}
