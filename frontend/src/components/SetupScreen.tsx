@@ -15,6 +15,11 @@ export function SetupScreen() {
   };
   const importScenario = (file: File) => { void file.text().then((text) => { const value = JSON.parse(text) as Partial<typeof scenarioConfig>; if (typeof value.seed === 'number') setSeed(value.seed); if (typeof value.horizon === 'number') setHorizon(value.horizon); if (value.mode) setMode(value.mode); if (typeof value.strategy === 'string') setStrategy(value.strategy); if (value.initialPrices) setInitialPrices(value.initialPrices); if (value.bomOverrides) setBomOverrides(value.bomOverrides); }).catch(() => undefined); };
   const scenarioConfig = { seed, horizon, mode, strategy, initialPrices, bomOverrides };
+  const bomErrors = catalog?.products.flatMap((product) => {
+    const recipe = bomOverrides[product.id] ?? Object.fromEntries((product.bom ?? []).map((item) => [item.raw_material_id, item.fraction]));
+    const total = Object.values(recipe).reduce((sum, value) => sum + (Number(value) || 0), 0);
+    return Math.abs(total - 1) > 0.001 ? [`${product.name} recipe totals ${(total * 100).toFixed(1)}%; it must total 100%.`] : [];
+  }) ?? [];
 
   useEffect(() => { void fetchCatalog(); }, [fetchCatalog]);
 
@@ -94,10 +99,11 @@ export function SetupScreen() {
         <div className="bom-table"><div className="bom-heading"><span>SKU</span><span>Initial price</span><span>Editable BOM fractions</span></div>{catalog.products.map((product) => <div className="bom-row" key={product.id}><strong>{product.name}</strong><input type="number" min={product.min_price} max={product.max_price} step={0.5} value={initialPrices[product.id] ?? product.base_price} onChange={(event) => setInitialPrices((current) => ({ ...current, [product.id]: Number(event.target.value) }))} /><span className="bom-inputs">{(product.bom ?? []).map((component) => <label key={component.raw_material_id}>{component.raw_material_id}<input type="number" min={0} max={1} step={0.05} value={bomOverrides[product.id]?.[component.raw_material_id] ?? component.fraction} onChange={(event) => setBomOverrides((current) => ({ ...current, [product.id]: { ...(current[product.id] ?? Object.fromEntries((product.bom ?? []).map((item) => [item.raw_material_id, item.fraction]))), [component.raw_material_id]: Number(event.target.value) } }))} /></label>)}</span></div>)}</div>
       </section>}
       {error && <div className="api-error">API error: {error}. Start the Python server on port 8000.</div>}
+      {bomErrors.map((message) => <div className="sim-warning" key={message}>{message}</div>)}
       <div className="setup-nav">
         <button
           className="btn btn-primary btn-start"
-          disabled={loading || !catalog}
+          disabled={loading || !catalog || bomErrors.length > 0}
           onClick={() => void startGame(seed, horizon, mode, strategy, initialPrices, bomOverrides)}
         >
           {loading ? 'Starting engine…' : 'Start roastery'}
