@@ -69,6 +69,22 @@ class Scenario:
     suppliers: tuple[Supplier, ...] = field(default_factory=tuple)
     products: tuple[Product, ...] = field(default_factory=tuple)
 
+    def validate(self) -> list[str]:
+        errors: list[str] = []
+        supplier_ids = {supplier.id for supplier in self.suppliers}
+        if self.horizon_days < 1: errors.append("horizon_days must be positive")
+        if self.green_capacity_kg <= 0 or self.roasted_capacity_kg <= 0: errors.append("inventory capacities must be positive")
+        if self.roaster_capacity_kg_per_day <= 0 or self.packaging_capacity_kg_per_day <= 0: errors.append("resource capacities must be positive")
+        for product in self.products:
+            if product.min_price < 0 or product.max_price < product.min_price: errors.append(f"invalid price bounds for {product.id}")
+            if product.bom:
+                total = sum(component.fraction for component in product.bom)
+                if abs(total - 1.0) > 1e-6: errors.append(f"BOM for {product.id} must sum to 1.0")
+                for component in product.bom:
+                    if component.raw_material_id not in supplier_ids: errors.append(f"{product.id} references unknown raw material {component.raw_material_id}")
+                    if component.fraction <= 0: errors.append(f"{product.id} has non-positive BOM fraction")
+        return errors
+
 
 def default_scenario(horizon_days: int = 90) -> Scenario:
     return Scenario(

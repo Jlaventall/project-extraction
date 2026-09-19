@@ -62,6 +62,7 @@ async def health() -> dict[str, Any]:
 @app.get("/api/catalog")
 async def catalog() -> dict[str, Any]:
     scenario = default_scenario()
+    validation_errors = scenario.validate()
     return {
         "scenario": scenario.name,
         "suppliers": [asdict(supplier) for supplier in scenario.suppliers],
@@ -72,6 +73,7 @@ async def catalog() -> dict[str, Any]:
             "credit_limit": scenario.credit_limit,
             "roaster_capacity_kg_per_day": scenario.roaster_capacity_kg_per_day,
         },
+        "validation": {"valid": not validation_errors, "errors": validation_errors},
     }
 
 
