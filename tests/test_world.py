@@ -52,6 +52,17 @@ def test_supplier_concentration_is_constrained() -> None:
     assert sum(order.quantity_kg for order in world.purchase_orders) == pytest.approx(520.0)
 
 
+def test_baseline_procures_each_bom_origin() -> None:
+    scenario = default_scenario(14)
+    world = CoffeeWorld(scenario, seed=42)
+    policy = BaseStockPolicy(scenario)
+
+    world.step(policy.act(world.snapshot()))
+
+    ordered_suppliers = {order.supplier_id for order in world.purchase_orders}
+    assert {"brazil", "colombia", "ethiopia"}.issubset(ordered_suppliers)
+
+
 def test_roasting_conserves_mass_and_applies_shrinkage() -> None:
     world = CoffeeWorld(default_scenario(7), seed=4)
     action = neutral_action(world)

@@ -11,23 +11,29 @@ class BaseStockPolicy:
         self.scenario = scenario
 
     def act(self, state: dict) -> WorldAction:
-        total_green = sum(state["green_inventory"].values()) + sum(state["inbound_green"].values())
         expected_yield = 1.0 - (self.scenario.shrinkage_low + self.scenario.shrinkage_high) / 2.0
-        green_target = (
-            sum(state.get("demand_forecast", {}).get(product.id, product.base_daily_demand_kg) for product in self.scenario.products)
-            * 10.0
-            / expected_yield
-        )
-        order_gap = max(0.0, green_target - total_green)
+        # Procurement must follow the BOM, not just the cheapest total-kg
+        # source.  Otherwise a baseline run can buy plenty of Brazil while
+        # leaving Ethiopia at zero and making every single-origin roast
+        # infeasible.  Keep a ten-day raw-material target for each origin.
+        target_by_raw = {supplier.id: 0.0 for supplier in self.scenario.suppliers}
+        for product in self.scenario.products:
+            demand = state.get("demand_forecast", {}).get(product.id, product.base_daily_demand_kg)
+            for component in product.bom:
+                target_by_raw[component.raw_material_id] += demand * 10.0 * component.fraction / expected_yield
+
         orders = {supplier.id: 0.0 for supplier in self.scenario.suppliers}
-        if order_gap > 0:
-            ranked = sorted(self.scenario.suppliers, key=lambda supplier: supplier.unit_cost)
-            primary, secondary = ranked[0], ranked[1]
-            primary_amount = min(primary.maximum_order * self.scenario.supplier_concentration_limit, order_gap)
-            orders[primary.id] = max(primary.minimum_order, primary_amount) if primary_amount >= primary.minimum_order else 0.0
-            remainder = max(0.0, order_gap - orders[primary.id])
-            if remainder > 0:
-                orders[secondary.id] = min(secondary.maximum_order, max(secondary.minimum_order, remainder))
+        for supplier in self.scenario.suppliers:
+            position = (
+                state["green_inventory"].get(supplier.id, 0.0)
+                + state["inbound_green"].get(supplier.id, 0.0)
+            )
+            gap = max(0.0, target_by_raw[supplier.id] - position)
+            if gap > 0:
+                orders[supplier.id] = min(
+                    supplier.maximum_order,
+                    max(supplier.minimum_order, gap),
+                )
 
         roasts: dict[str, float] = {}
         total_target = 0.0
