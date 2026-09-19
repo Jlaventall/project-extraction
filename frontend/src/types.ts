@@ -60,6 +60,10 @@ export interface DailyMetric {
     sales: number; inventory_value: number; roaster_utilization: number;
     packaging_utilization: number; roast_labor_hours: number;
     packaging_labor_hours: number; cash: number; reward: number;
+    total_labor_hours?: number; labor_utilization?: number; labor_cost?: number;
+    orders_fulfilled?: number; orders_missed?: number; fulfilled_kg?: number;
+    revenue?: number; cogs?: number; gross_margin?: number; gross_margin_pct?: number;
+    stockout_transactions?: number; stockout_kg?: number;
   };
 }
 

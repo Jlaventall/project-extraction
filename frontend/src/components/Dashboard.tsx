@@ -297,6 +297,14 @@ export function Dashboard() {
         </ResponsiveContainer>
       </section>
 
+      <section className="dash-card daily-ops-card">
+        <div className="card-header-row"><div><h3>Daily operations ledger</h3><p className="card-note">End-of-day operating and financial tallies. Latest 14 days shown.</p></div><span className="status-pill">{state.history.length} days recorded</span></div>
+        <div className="daily-ops-table">
+          <div className="daily-ops-heading"><span>Day</span><span>Sales</span><span>Margin</span><span>Fulfilled / missed</span><span>Labor hr</span><span>Util.</span><span>Stockout kg</span><span>Cash</span></div>
+          {[...state.history].slice(-14).reverse().map((day) => { const tally = day.eod_tally; return <div className="daily-ops-row" key={day.day}><strong>{day.day}</strong><span>{money(tally?.revenue ?? day.revenue)}</span><span>{money(tally?.gross_margin ?? 0)}</span><span>{tally?.orders_fulfilled ?? 0} / {tally?.orders_missed ?? 0}</span><span>{(tally?.total_labor_hours ?? ((day.roast_hours ?? 0) + (day.packaging_hours ?? 0))).toFixed(1)}</span><span>{((tally?.labor_utilization ?? 0) * 100).toFixed(0)}%</span><span className={tally?.stockout_kg ? 'text-danger' : ''}>{(tally?.stockout_kg ?? 0).toFixed(1)}</span><span>{money(tally?.cash ?? day.cash)}</span></div>; })}
+        </div>
+      </section>
+
       <section className="dash-grid">
         <article className="dash-card">
           <h3>Inventory by SKU</h3>
