@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import replace
 from dataclasses import asdict
 from typing import Any, Literal
 
@@ -9,7 +10,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from coffeesim.config import default_scenario
+from coffeesim.config import BomComponent, default_scenario
 from coffeesim.domain.models import WorldAction
 from coffeesim.policies.base_stock import BaseStockPolicy
 from coffeesim.simulation.world import CoffeeWorld
@@ -22,6 +23,7 @@ class CreateGameRequest(BaseModel):
     mode: Literal["live", "benchmark", "pettingzoo"] = "live"
     strategy: str = "human_manual"
     initial_prices: dict[str, float] = Field(default_factory=dict)
+    bom_overrides: dict[str, dict[str, float]] = Field(default_factory=dict)
 
 
 class StepRequest(BaseModel):
@@ -76,7 +78,21 @@ async def catalog() -> dict[str, Any]:
 @app.post("/api/games", status_code=201)
 async def create_game(request: CreateGameRequest) -> dict[str, Any]:
     game_id = uuid.uuid4().hex[:12]
-    world = CoffeeWorld(default_scenario(request.horizon_days), seed=request.seed)
+    scenario = default_scenario(request.horizon_days)
+    if request.bom_overrides:
+        products = []
+        valid_raw = {supplier.id for supplier in scenario.suppliers}
+        for product in scenario.products:
+            override = request.bom_overrides.get(product.id)
+            if override:
+                clean = {raw_id: max(0.0, float(fraction)) for raw_id, fraction in override.items() if raw_id in valid_raw}
+                total = sum(clean.values())
+                if not clean or abs(total - 1.0) > 1e-3:
+                    raise HTTPException(status_code=422, detail=f"BOM for {product.id} must sum to 1.0")
+                product = replace(product, bom=tuple(BomComponent(raw_id, fraction / total) for raw_id, fraction in clean.items()))
+            products.append(product)
+        scenario = replace(scenario, products=tuple(products))
+    world = CoffeeWorld(scenario, seed=request.seed)
     world.simulation_mode = request.mode
     world.simulation_strategy = request.strategy
     for product in world.scenario.products:
