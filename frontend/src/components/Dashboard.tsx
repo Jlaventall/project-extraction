@@ -49,6 +49,11 @@ export function Dashboard() {
   const weeklyDemandTotal = sum(forecastAtDraftPrices) * 7;
   const weeklyRawNeed = sum(draft.weekly_roast_targets);
   const weeklyExpectedOutput = weeklyRawNeed * expectedYield;
+  const bomNeedByRaw = Object.fromEntries(catalog.suppliers.map((supplier) => [supplier.id, 0]));
+  catalog.products.forEach((product) => {
+    const mo = draft.weekly_roast_targets[product.id] ?? 0;
+    (product.bom ?? []).forEach((component) => { bomNeedByRaw[component.raw_material_id] = (bomNeedByRaw[component.raw_material_id] ?? 0) + mo * component.fraction; });
+  });
   const roastQueueRoom = Math.max(
     0,
     catalog.defaults.roaster_capacity_kg_per_day * 2 - sum(queuedGreenBySku),
@@ -208,7 +213,7 @@ export function Dashboard() {
               <label className="control-row" key={supplier.id}>
                 <span>
                   <strong>{supplier.name}</strong>
-                  <small>{money(supplier.unit_cost)}/kg · {supplier.mean_lead_days}d mean · min {supplier.minimum_order}kg · on hand {kilos(state.green_inventory[supplier.id] ?? 0)} · inbound {kilos(state.inbound_green[supplier.id] ?? 0)}</small>
+                  <small>{money(supplier.unit_cost)}/kg · {supplier.mean_lead_days}d mean · min {supplier.minimum_order}kg · on hand {kilos(state.green_inventory[supplier.id] ?? 0)} · inbound {kilos(state.inbound_green[supplier.id] ?? 0)} · BOM need {kilos(bomNeedByRaw[supplier.id] ?? 0)}</small>
                 </span>
                 <input
                   type="number" min={0} max={supplier.maximum_order} step={5}
