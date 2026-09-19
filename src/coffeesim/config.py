@@ -62,6 +62,8 @@ class Scenario:
     temporary_labor_premium: float = 1.5
     labor_hourly_cost: float = 19.375
     labor_roles: tuple[tuple[str, int], ...] = (("roasting", 2), ("packaging", 1), ("quality", 1))
+    customer_order_min_kg: float = 1.0
+    customer_order_max_kg: float = 2.0
     holding_cost_per_kg_day: float = 0.035
     backorder_penalty_per_kg_day: float = 4.0
     lost_sale_penalty_per_kg: float = 9.0
@@ -91,6 +93,7 @@ class Scenario:
         if self.shifts < 1 or self.shifts > 3: errors.append("shifts must be between 1 and 3")
         if self.minimum_workers_per_shift < 1: errors.append("minimum_workers_per_shift must be positive")
         if self.temporary_workers < 0 or self.temporary_labor_premium < 1 or self.labor_hourly_cost <= 0: errors.append("invalid labor settings")
+        if self.customer_order_min_kg <= 0 or self.customer_order_max_kg < self.customer_order_min_kg: errors.append("invalid customer order size range")
         if self.green_capacity_kg <= 0 or self.roasted_capacity_kg <= 0: errors.append("inventory capacities must be positive")
         if self.roaster_capacity_kg_per_day <= 0 or self.packaging_capacity_kg_per_day <= 0: errors.append("resource capacities must be positive")
         for product in self.products:

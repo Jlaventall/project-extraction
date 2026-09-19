@@ -88,6 +88,16 @@ def test_manual_weekly_commit_releases_each_click() -> None:
     assert world.ledger.cash < first_cash
 
 
+def test_customer_demand_arrives_as_one_to_two_kg_orders() -> None:
+    scenario = default_scenario(3)
+    world = CoffeeWorld(scenario=scenario, seed=42)
+    world.inventory.consume("roasted", 75.0)
+    world.step(WorldAction())
+
+    assert world.backorders
+    assert all(1.0 <= order.quantity_kg <= 2.0 for order in world.backorders)
+
+
 def test_roasting_conserves_mass_and_applies_shrinkage() -> None:
     world = CoffeeWorld(default_scenario(7), seed=4)
     action = neutral_action(world)

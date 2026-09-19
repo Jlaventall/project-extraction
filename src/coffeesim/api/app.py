@@ -86,6 +86,8 @@ async def catalog() -> dict[str, Any]:
             "temporary_workers": scenario.temporary_workers,
             "temporary_labor_premium": scenario.temporary_labor_premium,
             "labor_roles": dict(scenario.labor_roles),
+            "customer_order_min_kg": scenario.customer_order_min_kg,
+            "customer_order_max_kg": scenario.customer_order_max_kg,
             "credit_limit": scenario.credit_limit,
             "roaster_capacity_kg_per_day": scenario.roaster_capacity_kg_per_day,
         },

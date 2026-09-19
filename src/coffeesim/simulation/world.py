@@ -457,14 +457,17 @@ class CoffeeWorld:
             if spike:
                 self._log("demand_spike", f"{sku} demand spike at {shock:.0%} of expected volume", sku=sku, multiplier=round(shock, 4))
             expected = product.base_daily_demand_kg * growth * weekday_factor * seasonal * price_factor * shock
-            total = int(self.demand_rng.poisson(max(0.0, expected)))
-            if total <= 0:
+            average_order_kg = (self.scenario.customer_order_min_kg + self.scenario.customer_order_max_kg) / 2.0
+            order_count = int(self.demand_rng.poisson(max(0.0, expected) / max(0.1, average_order_kg)))
+            if order_count <= 0:
                 continue
             weights = np.array([0.06, 0.10, 0.17, 0.20, 0.18, 0.14, 0.09, 0.06])
-            waves = self.demand_rng.multinomial(total, weights)
-            for wave_index, quantity in enumerate(waves):
-                if quantity <= 0:
-                    continue
+            for _ in range(order_count):
+                quantity = float(self.demand_rng.integers(
+                    int(round(self.scenario.customer_order_min_kg * 100)),
+                    int(round(self.scenario.customer_order_max_kg * 100)) + 1,
+                ) / 100.0)
+                wave_index = int(self.demand_rng.choice(len(weights), p=weights))
                 base_offset = 0.12 + wave_index * (0.76 / self.DEMAND_WAVES)
                 jitter = float(self.demand_rng.uniform(0.0, 0.04))
                 self.env.process(
