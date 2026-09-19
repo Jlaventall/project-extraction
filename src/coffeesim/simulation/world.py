@@ -645,6 +645,9 @@ class CoffeeWorld:
         revenue = day_totals.get("sales", 0.0)
         cogs = day_totals.get("cogs", 0.0)
         gross_margin = revenue + cogs
+        roast_labor_hours = self._daily.get("roast_hours", 0.0)
+        packaging_labor_hours = self._daily.get("packaging_hours", 0.0)
+        total_labor_hours = roast_labor_hours + packaging_labor_hours
         self.day += 1
         if self.ledger.cash < -self.scenario.credit_limit:
             self.terminated = True
@@ -674,8 +677,12 @@ class CoffeeWorld:
                 "inventory_value": round(self.inventory.value(), 3),
                 "roaster_utilization": round(min(1.0, self._daily["roast_hours"] / 24.0), 4),
                 "packaging_utilization": round(min(1.0, self._daily["packaging_hours"] / 24.0), 4),
-                "roast_labor_hours": round(self._daily["roast_hours"], 3),
-                "packaging_labor_hours": round(self._daily["packaging_hours"], 3),
+                "roast_labor_hours": round(roast_labor_hours, 3),
+                "packaging_labor_hours": round(packaging_labor_hours, 3),
+                "total_labor_hours": round(total_labor_hours, 3),
+                "labor_hours_available": 24.0,
+                "labor_utilization": round(min(1.0, total_labor_hours / 24.0), 4),
+                "labor_cost": round(day_totals.get("labor", 0.0), 3),
                 "cash": round(self.ledger.cash, 3),
                 "reward": round(reward, 3),
                 "stockout_transactions": int(self._daily.get("stockout_transactions", 0)),
