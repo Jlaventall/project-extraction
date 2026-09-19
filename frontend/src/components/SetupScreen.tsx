@@ -9,6 +9,12 @@ export function SetupScreen() {
   const [strategy, setStrategy] = useState('human_manual');
   const [initialPrices, setInitialPrices] = useState<Record<string, number>>({});
   const [bomOverrides, setBomOverrides] = useState<Record<string, Record<string, number>>>({});
+  const exportScenario = () => {
+    const blob = new Blob([JSON.stringify({ format: 'coffeesim.scenario.v1', seed, horizon, mode, strategy, initialPrices, bomOverrides }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'coffeesim-scenario.json'; anchor.click(); URL.revokeObjectURL(url);
+  };
+  const importScenario = (file: File) => { void file.text().then((text) => { const value = JSON.parse(text) as Partial<typeof scenarioConfig>; if (typeof value.seed === 'number') setSeed(value.seed); if (typeof value.horizon === 'number') setHorizon(value.horizon); if (value.mode) setMode(value.mode); if (typeof value.strategy === 'string') setStrategy(value.strategy); if (value.initialPrices) setInitialPrices(value.initialPrices); if (value.bomOverrides) setBomOverrides(value.bomOverrides); }).catch(() => undefined); };
+  const scenarioConfig = { seed, horizon, mode, strategy, initialPrices, bomOverrides };
 
   useEffect(() => { void fetchCatalog(); }, [fetchCatalog]);
 
@@ -74,6 +80,7 @@ export function SetupScreen() {
           </label>
         </div>
       </section>
+      <div className="scenario-actions"><button className="btn btn-small" onClick={exportScenario}>Export scenario</button><label className="btn btn-small">Import scenario<input type="file" accept="application/json" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) importScenario(file); }} /></label></div>
 
       {catalog && (
         <p className="setup-hint">
