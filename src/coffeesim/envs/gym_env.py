@@ -12,7 +12,7 @@ from coffeesim.simulation.world import CoffeeWorld
 
 
 class CoffeeRoasteryEnv(gym.Env):
-    """Daily-decision Gymnasium adapter around :class:`CoffeeWorld`."""
+    """Weekly master-schedule Gymnasium adapter around :class:`CoffeeWorld`."""
 
     metadata = {"render_modes": ["human"], "render_fps": 4}
 
@@ -33,8 +33,8 @@ class CoffeeRoasteryEnv(gym.Env):
 
         self.action_space = spaces.Dict(
             {
-                "green_orders": spaces.Box(0.0, 1.0, shape=(len(self.supplier_ids),), dtype=np.float32),
-                "roast_targets": spaces.Box(0.0, 1.0, shape=(len(self.sku_ids),), dtype=np.float32),
+                "weekly_green_orders": spaces.Box(0.0, 1.0, shape=(len(self.supplier_ids),), dtype=np.float32),
+                "weekly_roast_targets": spaces.Box(0.0, 1.0, shape=(len(self.sku_ids),), dtype=np.float32),
                 "prices": spaces.Box(0.0, 1.0, shape=(len(self.sku_ids),), dtype=np.float32),
             }
         )
@@ -51,6 +51,9 @@ class CoffeeRoasteryEnv(gym.Env):
                 "resources": spaces.Box(0.0, 1.0, shape=(4,), dtype=np.float32),
                 "finance": spaces.Box(-2.0, 5.0, shape=(4,), dtype=np.float32),
                 "calendar": spaces.Box(0.0, 1.0, shape=(3,), dtype=np.float32),
+                "demand_forecast": spaces.Box(0.0, 1.0, shape=(len(self.sku_ids),), dtype=np.float32),
+                "standing_plan": spaces.Box(0.0, 1.0, shape=(len(self.supplier_ids) + len(self.sku_ids),), dtype=np.float32),
+                "utilization": spaces.Box(0.0, 1.0, shape=(2,), dtype=np.float32),
             }
         )
 
@@ -68,13 +71,13 @@ class CoffeeRoasteryEnv(gym.Env):
 
     def _world_action(self, action: dict[str, np.ndarray]) -> WorldAction:
         return WorldAction(
-            green_orders={
+            weekly_green_orders={
                 supplier.id: float(value) * supplier.maximum_order
-                for supplier, value in zip(self.scenario.suppliers, action["green_orders"], strict=True)
+                for supplier, value in zip(self.scenario.suppliers, action["weekly_green_orders"], strict=True)
             },
-            roast_targets={
-                key: float(value) * self.scenario.roaster_capacity_kg_per_day * 1.5
-                for key, value in zip(self.sku_ids, action["roast_targets"], strict=True)
+            weekly_roast_targets={
+                key: float(value) * self.scenario.roaster_capacity_kg_per_day * 7.0
+                for key, value in zip(self.sku_ids, action["weekly_roast_targets"], strict=True)
             },
             prices={
                 product.id: product.min_price + float(value) * (product.max_price - product.min_price)
@@ -138,6 +141,18 @@ class CoffeeRoasteryEnv(gym.Env):
             ],
             dtype=np.float32,
         )
+        forecast = np.array([raw["demand_forecast"][key] / 100.0 for key in self.sku_ids], dtype=np.float32)
+        plan = raw.get("standing_plan", {"weekly_green_orders": {}, "weekly_roast_targets": {}})
+        standing = np.array(
+            [plan["weekly_green_orders"].get(key, 0.0) / max(1.0, item.maximum_order) for key, item in zip(self.supplier_ids, self.scenario.suppliers, strict=True)]
+            + [plan["weekly_roast_targets"].get(key, 0.0) / (self.scenario.roaster_capacity_kg_per_day * 7.0) for key in self.sku_ids],
+            dtype=np.float32,
+        )
+        stats = raw.get("stats", {})
+        utilization = np.array([
+            min(1.0, (stats.get("roast_hours", 0.0) % 168.0) / 168.0),
+            min(1.0, (stats.get("packaging_hours", 0.0) % 168.0) / 168.0),
+        ], dtype=np.float32)
         observation = {
             "green_inventory": green,
             "roasted_inventory": roasted,
@@ -148,6 +163,9 @@ class CoffeeRoasteryEnv(gym.Env):
             "resources": resources,
             "finance": finance,
             "calendar": calendar,
+            "demand_forecast": forecast,
+            "standing_plan": standing,
+            "utilization": utilization,
         }
         return {
             key: np.clip(value, self.observation_space[key].low, self.observation_space[key].high).astype(np.float32)
