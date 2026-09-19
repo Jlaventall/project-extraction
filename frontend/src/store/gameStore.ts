@@ -14,6 +14,7 @@ interface GameStore {
   loading: boolean;
   error: string | null;
   autoAdvance: boolean;
+  runHistory: RunRecord[];
   fetchCatalog: () => Promise<void>;
   startGame: (seed: number, horizonDays: number, mode?: SimulationMode, strategy?: string) => Promise<void>;
   advanceDay: (useBaseline?: boolean) => Promise<void>;
@@ -25,6 +26,10 @@ interface GameStore {
 type ActionPayload = ActionDraft & { use_baseline: boolean };
 type StoredRun = { seed: number; horizonDays: number; mode: SimulationMode; strategy: string; actions: ActionPayload[] };
 const RUN_KEY = 'coffeesim-run-v1';
+const HISTORY_KEY = 'coffeesim-run-history-v1';
+type RunRecord = { mode: string; strategy: string; seed: number; days: number; reward: number; cash: number; service: number; completedAt: string };
+function loadHistory(): RunRecord[] { try { return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]') as RunRecord[]; } catch { return []; } }
+function saveHistory(history: RunRecord[]) { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-20))); }
 function loadRun(): StoredRun | null {
   try { return JSON.parse(localStorage.getItem(RUN_KEY) ?? 'null') as StoredRun | null; } catch { return null; }
 }
@@ -54,6 +59,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   loading: false,
   error: null,
   autoAdvance: false,
+  runHistory: loadHistory(),
 
   fetchCatalog: async () => {
     if (get().catalog) return;
@@ -117,6 +123,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       const saved = loadRun();
       if (saved) { saved.actions.push(action); saveRun(saved); }
+      if (payload.state.terminated || payload.state.truncated) {
+        const history = loadHistory();
+        history.push({ mode: payload.state.simulation_mode ?? 'live', strategy: payload.state.simulation_strategy ?? 'human_manual', seed: payload.state.seed, days: payload.state.day, reward: payload.state.history.reduce((total, day) => total + day.reward, 0), cash: payload.state.cash, service: payload.state.service_level, completedAt: new Date().toISOString() });
+        saveHistory(history); set({ runHistory: history.slice(-20) });
+      }
       const standing = payload.state.standing_plan;
       set({
         state: payload.state,

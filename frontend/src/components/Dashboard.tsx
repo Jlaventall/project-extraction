@@ -12,7 +12,7 @@ const sum = (values: Record<string, number>) => Object.values(values).reduce((to
 export function Dashboard() {
   const [forecastTracksPrice, setForecastTracksPrice] = useState(true);
   const {
-    phase, catalog, state, draft, loading, error, autoAdvance,
+    phase, catalog, state, draft, loading, error, autoAdvance, runHistory,
     advanceDay, setDraftValue, setAutoAdvance, resetGame,
   } = useGameStore();
 
@@ -127,6 +127,7 @@ export function Dashboard() {
           <Summary label="Supply events" value={String(state.events.filter((event) => event.category === 'supply').length)} />
         </div>
       </section>
+      {runHistory.length > 0 && <section className="dash-card"><div className="card-header-row"><div><h3>Strategy history</h3><p className="card-note">Completed runs saved in this browser.</p></div><span className="status-pill">{runHistory.length} runs</span></div><div className="history-table"><div className="history-heading"><span>Mode / strategy</span><span>Seed</span><span>Reward</span><span>Cash</span><span>Service</span></div>{[...runHistory].reverse().slice(0, 8).map((run) => <div className="history-row" key={`${run.completedAt}-${run.seed}`}><strong>{run.mode} · {run.strategy}</strong><span>{run.seed}</span><span>{money(run.reward)}</span><span>{money(run.cash)}</span><span>{(run.service * 100).toFixed(1)}%</span></div>)}</div></section>}
 
       <section className="dash-card top-pricing-card">
         <div className="card-header-row"><div><h3>Pricing & demand control</h3><p className="card-note">Price elasticity is applied to each SKU forecast before demand is realized.</p></div><button className="btn btn-small" onClick={() => setForecastTracksPrice(!forecastTracksPrice)}>{forecastTracksPrice ? 'Auto forecast' : 'Fixed forecast'}</button></div>
