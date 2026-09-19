@@ -440,6 +440,7 @@ class CoffeeWorld:
         yield self.env.timeout(delay)
         self.stats["demand"] += quantity
         self._daily["demand_kg"] += quantity
+        self._daily.setdefault("demand_by_sku", {})[sku] = self._daily.setdefault("demand_by_sku", {}).get(sku, 0.0) + quantity
         taken, cost, _quality = self.inventory.consume("roasted", quantity, sku)
         if taken > 0:
             self.stats["roasted_reserved"] += taken
@@ -598,7 +599,8 @@ class CoffeeWorld:
 
         daily = {
             "day": self.day,
-            **{key: round(value, 3) for key, value in self._daily.items()},
+            **{key: round(value, 3) for key, value in self._daily.items() if isinstance(value, (int, float))},
+            "demand_by_sku": {key: round(value, 3) for key, value in self._daily.get("demand_by_sku", {}).items()},
             "reward": round(reward, 3),
             "cash_change": round(self.ledger.cash - cash_start, 3),
             "cash": round(self.ledger.cash, 3),

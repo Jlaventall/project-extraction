@@ -51,6 +51,7 @@ export interface DailyMetric {
   cash: number;
   warnings: string[];
   forecast?: Record<string, number>;
+  demand_by_sku?: Record<string, number>;
   roast_hours?: number;
   packaging_hours?: number;
 }

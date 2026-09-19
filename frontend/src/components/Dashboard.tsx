@@ -173,7 +173,7 @@ export function Dashboard() {
               <div className="decision-row" key={product.id}>
                 <strong>{product.name}</strong>
                 <span>{kilos(weeklyDemand)}</span>
-                <span className="demand-sparkline"><ResponsiveContainer width="100%" height={32}><LineChart data={state.history.slice(-14).map((day) => ({ actual: day.demand_kg, forecast: (day.forecast?.[product.id] ?? forecast) }))}><Line type="monotone" dataKey="actual" stroke="#f59e0b" dot={false} strokeWidth={1.5} /><Line type="monotone" dataKey="forecast" stroke="#60a5fa" dot={false} strokeWidth={1.5} /></LineChart></ResponsiveContainer></span>
+                <span className="demand-sparkline"><ResponsiveContainer width="100%" height={32}><LineChart data={state.history.slice(-14).map((day) => ({ actual: day.demand_by_sku?.[product.id] ?? 0, forecast: (day.forecast?.[product.id] ?? forecast) }))}><Line type="monotone" dataKey="actual" stroke="#f59e0b" dot={false} strokeWidth={1.5} /><Line type="monotone" dataKey="forecast" stroke="#60a5fa" dot={false} strokeWidth={1.5} /></LineChart></ResponsiveContainer></span>
                 <span>{kilos(ready)}</span>
                 <span>{kilos(moRaw * expectedYield)}</span>
                 <span>{kilos(moRaw)}</span>
