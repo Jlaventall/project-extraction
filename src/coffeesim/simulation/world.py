@@ -485,6 +485,7 @@ class CoffeeWorld:
         taken, cost, _quality = self.inventory.consume("roasted", quantity, sku)
         if taken > 0:
             self.stats["roasted_reserved"] += taken
+            self._daily["fulfilled_transactions"] += 1
             self.env.process(self._package_process(sku, taken, unit_price, cost))
         remainder = quantity - taken
         if remainder > 1e-9:
@@ -625,6 +626,7 @@ class CoffeeWorld:
             "packaging_hours": 0.0,
             "stockout_transactions": 0,
             "stockout_kg": 0.0,
+            "fulfilled_transactions": 0,
         }
         ledger_start = len(self.ledger.entries)
         cash_start = self.ledger.cash
@@ -637,6 +639,12 @@ class CoffeeWorld:
         self._run_through(target)
         self._settle_day()
         reward = self.ledger.reward_since(ledger_start)
+        day_totals: dict[str, float] = {}
+        for entry in self.ledger.entries[ledger_start:]:
+            day_totals[entry.category] = day_totals.get(entry.category, 0.0) + entry.amount
+        revenue = day_totals.get("sales", 0.0)
+        cogs = day_totals.get("cogs", 0.0)
+        gross_margin = revenue + cogs
         self.day += 1
         if self.ledger.cash < -self.scenario.credit_limit:
             self.terminated = True
@@ -656,6 +664,13 @@ class CoffeeWorld:
             "forecast": self._expected_demand_forecast(),
             "eod_tally": {
                 "sales": round(self._daily["revenue"], 3),
+                "orders_fulfilled": int(self._daily.get("fulfilled_transactions", 0)),
+                "orders_missed": int(self._daily.get("stockout_transactions", 0)),
+                "fulfilled_kg": round(self._daily.get("served_kg", 0.0), 3),
+                "revenue": round(revenue, 3),
+                "cogs": round(cogs, 3),
+                "gross_margin": round(gross_margin, 3),
+                "gross_margin_pct": round(gross_margin / revenue, 4) if revenue else 0.0,
                 "inventory_value": round(self.inventory.value(), 3),
                 "roaster_utilization": round(min(1.0, self._daily["roast_hours"] / 24.0), 4),
                 "packaging_utilization": round(min(1.0, self._daily["packaging_hours"] / 24.0), 4),
