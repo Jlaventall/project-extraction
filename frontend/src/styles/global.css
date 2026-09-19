@@ -2132,6 +2132,11 @@ body {
 .btn-small { padding: 5px 9px; font-size: 0.72rem; }
 .event-category { display: inline-block; margin-right: 7px; padding: 2px 5px; border-radius: 4px; font-size: 0.62rem; text-transform: uppercase; letter-spacing: .05em; background: #263241; color: #93c5fd; }
 .event-category.demand { background: #3a2922; color: #fdba74; }
+.anomalies-card { margin-top: 14px; }
+.anomaly-list { display: grid; gap: 4px; }
+.anomaly-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(42,47,56,.5); font-size: .78rem; }
+.anomaly-message { color: #f8fafc; }
+.anomaly-meta { color: var(--muted); white-space: nowrap; }
 .app-tabs { display: flex; gap: 4px; margin: 0 0 18px; padding: 4px; border: 1px solid #2a2f38; border-radius: 8px; background: #15181d; }
 .app-tabs button { flex: 1; border: 0; border-radius: 5px; padding: 9px 12px; background: transparent; color: var(--muted); cursor: pointer; font: inherit; }
 .app-tabs button.active { background: #263241; color: #f8fafc; box-shadow: inset 0 -2px 0 #f59e0b; }

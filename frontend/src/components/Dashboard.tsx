@@ -33,6 +33,12 @@ export function Dashboard() {
     if (key) counts[key] = (counts[key] ?? 0) + 1;
     return counts;
   }, {});
+  const anomalyMap = new Map<string, { count: number; lastDay: number }>();
+  state.history.forEach((day) => day.warnings.forEach((warning) => {
+    const current = anomalyMap.get(warning) ?? { count: 0, lastDay: day.day };
+    anomalyMap.set(warning, { count: current.count + 1, lastDay: Math.max(current.lastDay, day.day) });
+  }));
+  const anomalies = [...anomalyMap.entries()].sort((left, right) => right[1].lastDay - left[1].lastDay || right[1].count - left[1].count);
   const forecastAtDraftPrices = Object.fromEntries(catalog.products.map((product) => {
     const committedPrice = state.prices[product.id] ?? product.base_price;
     const draftPrice = draft.prices[product.id] ?? committedPrice;
@@ -122,7 +128,6 @@ export function Dashboard() {
         </section>
       )}
       {error && <div className="api-error">{error}</div>}
-      {state.today?.warnings.map((warning) => <div className="sim-warning" key={warning}>{warning}</div>)}
 
       <section className="kpi-row">
         <Kpi label="Cash" value={money(state.cash)} sub={`${money(state.credit_available)} liquidity`} trend={state.cash >= 0 ? 'up' : 'down'} />
@@ -330,6 +335,10 @@ export function Dashboard() {
         </article>
       </section>}
 
+      {activeTab === 'control' && <section className="dash-card anomalies-card">
+        <div className="card-header-row"><div><h3>Anomalies</h3><p className="card-note">Operational warnings collected across the run; no transient banners.</p></div><span className="status-pill">{anomalies.length} types · {anomalies.reduce((total, [, value]) => total + value.count, 0)} occurrences</span></div>
+        {anomalies.length === 0 ? <div className="journal-empty">No anomalies recorded.</div> : <div className="anomaly-list">{anomalies.map(([warning, detail]) => <div className="anomaly-row" key={warning}><span className="event-category supply">ANOMALY</span><span className="anomaly-message">{warning}</span><span className="anomaly-meta">{detail.count}× · last day {detail.lastDay}</span></div>)}</div>}
+      </section>}
       {activeTab === 'control' && <EventPanel events={state.events} snapshot={state} gameId={gameId} />}
     </main>
   );
