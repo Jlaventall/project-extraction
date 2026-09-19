@@ -77,6 +77,8 @@ class CoffeeWorld:
             "lost_sales": 0.0,
             "roast_hours": 0.0,
             "packaging_hours": 0.0,
+            "stockout_transactions": 0,
+            "stockout_kg": 0.0,
         }
         self._initialize_inventory()
 
@@ -117,7 +119,7 @@ class CoffeeWorld:
             self.stats["roasted_opening"] += quantity
 
     def _log(self, event_type: str, message: str, **data: Any) -> None:
-        category = "demand" if event_type in {"demand_spike", "stockout", "lost_sale"} else "supply"
+        category = "demand" if event_type in {"demand_spike", "stockout", "stockout_tally", "lost_sale"} else "supply"
         self.event_log.append(
             {
                 "time": round(float(self.env.now), 4),
@@ -486,12 +488,9 @@ class CoffeeWorld:
             self.env.process(self._package_process(sku, taken, unit_price, cost))
         remainder = quantity - taken
         if remainder > 1e-9:
-            self._log(
-                "stockout",
-                f"{sku} stockout left {remainder:.1f} kg unserved",
-                sku=sku,
-                quantity=round(remainder, 3),
-            )
+            self._daily["stockout_transactions"] += 1
+            self._daily["stockout_kg"] += remainder
+            self._daily.setdefault("stockout_by_sku", {})[sku] = self._daily.setdefault("stockout_by_sku", {}).get(sku, 0.0) + remainder
             self.backorders.append(
                 Backorder(
                     order_id=self._next_id("demand"),
@@ -575,6 +574,14 @@ class CoffeeWorld:
             -(held * self.scenario.holding_cost_per_kg_day),
             cash=False,
         )
+        if self._daily.get("stockout_transactions", 0) > 0:
+            self._log(
+                "stockout_tally",
+                f"{int(self._daily['stockout_transactions'])} missed demand transactions totaling {self._daily['stockout_kg']:.1f} kg",
+                transactions=int(self._daily["stockout_transactions"]),
+                quantity_kg=round(self._daily["stockout_kg"], 3),
+                by_sku={key: round(value, 3) for key, value in self._daily.get("stockout_by_sku", {}).items()},
+            )
 
     def _run_through(self, target: float) -> None:
         """Advance through all events at target, not merely up to it."""
@@ -616,6 +623,8 @@ class CoffeeWorld:
             "downtime_hours": 0.0,
             "roast_hours": 0.0,
             "packaging_hours": 0.0,
+            "stockout_transactions": 0,
+            "stockout_kg": 0.0,
         }
         ledger_start = len(self.ledger.entries)
         cash_start = self.ledger.cash
@@ -654,6 +663,8 @@ class CoffeeWorld:
                 "packaging_labor_hours": round(self._daily["packaging_hours"], 3),
                 "cash": round(self.ledger.cash, 3),
                 "reward": round(reward, 3),
+                "stockout_transactions": int(self._daily.get("stockout_transactions", 0)),
+                "stockout_kg": round(self._daily.get("stockout_kg", 0.0), 3),
             },
         }
         self.daily_history.append(daily)
