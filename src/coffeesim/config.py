@@ -14,6 +14,7 @@ class Supplier:
     maximum_order: float
     quality: float
     reliability: float
+    lot_size_kg: float = 5.0
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,7 @@ class Product:
     shelf_life_days: float
     roast_profile: str
     bom: tuple[BomComponent, ...] = field(default_factory=tuple)
+    lot_size_kg: float = 5.0
 
 
 @dataclass(frozen=True)
@@ -43,6 +45,7 @@ class Scenario:
     credit_limit: float = 25_000.0
     starting_green_kg: float = 420.0
     procurement_coverage_days: float = 14.0
+    finished_goods_coverage_days: float = 3.0
     starting_roasted_kg_per_sku: float = 25.0
     green_capacity_kg: float = 2_500.0
     roasted_capacity_kg: float = 900.0
@@ -75,6 +78,7 @@ class Scenario:
         supplier_ids = {supplier.id for supplier in self.suppliers}
         if self.horizon_days < 1: errors.append("horizon_days must be positive")
         if self.procurement_coverage_days <= 0: errors.append("procurement_coverage_days must be positive")
+        if self.finished_goods_coverage_days <= 0: errors.append("finished_goods_coverage_days must be positive")
         if self.green_capacity_kg <= 0 or self.roasted_capacity_kg <= 0: errors.append("inventory capacities must be positive")
         if self.roaster_capacity_kg_per_day <= 0 or self.packaging_capacity_kg_per_day <= 0: errors.append("resource capacities must be positive")
         for product in self.products:
@@ -92,13 +96,13 @@ def default_scenario(horizon_days: int = 90) -> Scenario:
     return Scenario(
         horizon_days=horizon_days,
         suppliers=(
-            Supplier("colombia", "Colombia Cooperative", 7.10, 5.0, 1.2, 50.0, 600.0, 0.86, 0.90),
-            Supplier("ethiopia", "Ethiopia Direct Trade", 8.60, 8.0, 2.0, 35.0, 450.0, 0.94, 0.82),
-            Supplier("brazil", "Brazil Contract", 6.35, 3.0, 0.7, 75.0, 800.0, 0.78, 0.96),
+            Supplier("colombia", "Colombia Cooperative", 7.10, 5.0, 1.2, 50.0, 600.0, 0.86, 0.90, 5.0),
+            Supplier("ethiopia", "Ethiopia Direct Trade", 8.60, 8.0, 2.0, 35.0, 450.0, 0.94, 0.82, 5.0),
+            Supplier("brazil", "Brazil Contract", 6.35, 3.0, 0.7, 75.0, 800.0, 0.78, 0.96, 5.0),
         ),
         products=(
-            Product("house", "House Blend", 22.0, 15.0, 32.0, 31.0, 30.0, "medium", (BomComponent("brazil", 0.60), BomComponent("colombia", 0.40))),
-            Product("espresso", "Espresso", 25.0, 18.0, 36.0, 22.0, 35.0, "medium-dark", (BomComponent("brazil", 0.70), BomComponent("colombia", 0.30))),
-            Product("single_origin", "Single Origin", 31.0, 22.0, 44.0, 13.0, 24.0, "light", (BomComponent("ethiopia", 1.0),)),
+            Product("house", "House Blend", 22.0, 15.0, 32.0, 31.0, 30.0, "medium", (BomComponent("brazil", 0.60), BomComponent("colombia", 0.40)), 5.0),
+            Product("espresso", "Espresso", 25.0, 18.0, 36.0, 22.0, 35.0, "medium-dark", (BomComponent("brazil", 0.70), BomComponent("colombia", 0.30)), 5.0),
+            Product("single_origin", "Single Origin", 31.0, 22.0, 44.0, 13.0, 24.0, "light", (BomComponent("ethiopia", 1.0),), 5.0),
         ),
     )

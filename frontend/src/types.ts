@@ -11,6 +11,7 @@ export interface Supplier {
   maximum_order: number;
   quality: number;
   reliability: number;
+  lot_size_kg: number;
 }
 
 export interface Product {
@@ -23,6 +24,7 @@ export interface Product {
   shelf_life_days: number;
   roast_profile: string;
   bom?: { raw_material_id: string; fraction: number }[];
+  lot_size_kg: number;
 }
 
 export interface Catalog {
@@ -36,6 +38,7 @@ export interface Catalog {
     credit_limit: number;
     roaster_capacity_kg_per_day: number;
     procurement_coverage_days: number;
+    finished_goods_coverage_days: number;
   };
 }
 
@@ -109,6 +112,7 @@ export interface GameSnapshot {
   prices: Record<string, number>;
   demand_forecast: Record<string, number>;
   procurement_coverage_days?: number;
+  finished_goods_coverage_days?: number;
   material_plan?: Record<string, {
     on_hand_kg: number; inbound_kg: number; target_kg: number; gap_kg: number;
     estimated_cost: number; lead_days: number;

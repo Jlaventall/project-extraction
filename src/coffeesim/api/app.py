@@ -25,6 +25,7 @@ class CreateGameRequest(BaseModel):
     initial_prices: dict[str, float] = Field(default_factory=dict)
     bom_overrides: dict[str, dict[str, float]] = Field(default_factory=dict)
     coverage_days: float = Field(default=14.0, ge=1.0, le=60.0)
+    finished_goods_coverage_days: float = Field(default=3.0, ge=1.0, le=30.0)
 
 
 class StepRequest(BaseModel):
@@ -73,6 +74,7 @@ async def catalog() -> dict[str, Any]:
             "starting_cash": scenario.starting_cash,
             "starting_green_kg": scenario.starting_green_kg,
             "procurement_coverage_days": scenario.procurement_coverage_days,
+            "finished_goods_coverage_days": scenario.finished_goods_coverage_days,
             "credit_limit": scenario.credit_limit,
             "roaster_capacity_kg_per_day": scenario.roaster_capacity_kg_per_day,
         },
@@ -84,7 +86,7 @@ async def catalog() -> dict[str, Any]:
 async def create_game(request: CreateGameRequest) -> dict[str, Any]:
     game_id = uuid.uuid4().hex[:12]
     scenario = default_scenario(request.horizon_days)
-    scenario = replace(scenario, procurement_coverage_days=request.coverage_days)
+    scenario = replace(scenario, procurement_coverage_days=request.coverage_days, finished_goods_coverage_days=request.finished_goods_coverage_days)
     if request.bom_overrides:
         products = []
         valid_raw = {supplier.id for supplier in scenario.suppliers}

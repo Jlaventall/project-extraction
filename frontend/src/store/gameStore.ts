@@ -16,7 +16,7 @@ interface GameStore {
   autoAdvance: boolean;
   runHistory: RunRecord[];
   fetchCatalog: () => Promise<void>;
-  startGame: (seed: number, horizonDays: number, mode?: SimulationMode, strategy?: string, initialPrices?: Record<string, number>, bomOverrides?: Record<string, Record<string, number>>, coverageDays?: number) => Promise<void>;
+  startGame: (seed: number, horizonDays: number, mode?: SimulationMode, strategy?: string, initialPrices?: Record<string, number>, bomOverrides?: Record<string, Record<string, number>>, coverageDays?: number, finishedGoodsCoverageDays?: number) => Promise<void>;
   advanceDay: (useBaseline?: boolean) => Promise<void>;
   setDraftValue: (group: keyof ActionDraft, key: string, value: number) => void;
   setAutoAdvance: (enabled: boolean) => void;
@@ -24,7 +24,7 @@ interface GameStore {
 }
 
 type ActionPayload = ActionDraft & { use_baseline: boolean };
-type StoredRun = { seed: number; horizonDays: number; coverageDays: number; mode: SimulationMode; strategy: string; actions: ActionPayload[] };
+type StoredRun = { seed: number; horizonDays: number; coverageDays: number; finishedGoodsCoverageDays: number; mode: SimulationMode; strategy: string; actions: ActionPayload[] };
 const RUN_KEY = 'coffeesim-run-v1';
 const HISTORY_KEY = 'coffeesim-run-history-v1';
 type RunRecord = { mode: string; strategy: string; seed: number; days: number; reward: number; cash: number; service: number; completedAt: string };
@@ -71,16 +71,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  startGame: async (seed, horizonDays, mode = 'live', strategy = 'human_manual', initialPrices = {}, bomOverrides = {}, coverageDays = 14) => {
+  startGame: async (seed, horizonDays, mode = 'live', strategy = 'human_manual', initialPrices = {}, bomOverrides = {}, coverageDays = 14, finishedGoodsCoverageDays = 3) => {
     set({ loading: true, error: null });
     try {
       const payload = await responseJson(await fetch(`${API_BASE}/api/games`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seed, horizon_days: horizonDays, mode, strategy, initial_prices: initialPrices, bom_overrides: bomOverrides, coverage_days: coverageDays }),
+        body: JSON.stringify({ seed, horizon_days: horizonDays, mode, strategy, initial_prices: initialPrices, bom_overrides: bomOverrides, coverage_days: coverageDays, finished_goods_coverage_days: finishedGoodsCoverageDays }),
       })) as { game_id: string; state: GameSnapshot };
       const catalog = get().catalog;
-      saveRun({ seed, horizonDays, coverageDays, mode, strategy, actions: [] });
+      saveRun({ seed, horizonDays, coverageDays, finishedGoodsCoverageDays, mode, strategy, actions: [] });
       set({
         gameId: payload.game_id,
         state: payload.state,
@@ -115,7 +115,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (!saved) throw error;
         const recreated = await responseJson(await fetch(`${API_BASE}/api/games`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ seed: saved.seed, horizon_days: saved.horizonDays, coverage_days: saved.coverageDays ?? 14, mode: saved.mode, strategy: saved.strategy }),
+          body: JSON.stringify({ seed: saved.seed, horizon_days: saved.horizonDays, coverage_days: saved.coverageDays ?? 14, finished_goods_coverage_days: saved.finishedGoodsCoverageDays ?? 3, mode: saved.mode, strategy: saved.strategy }),
         })) as { game_id: string; state: GameSnapshot };
         for (const previous of saved.actions) await requestStep(recreated.game_id, previous);
         set({ gameId: recreated.game_id });

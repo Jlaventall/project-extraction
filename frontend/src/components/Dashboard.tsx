@@ -5,12 +5,13 @@ import {
 import { useGameStore } from '../store/gameStore';
 import { EventPanel } from './EventPanel';
 
-const money = (value: number) => `$${Math.round(value).toLocaleString()}`;
+const money = (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const kilos = (value: number) => `${value.toFixed(1)} kg`;
 const sum = (values: Record<string, number>) => Object.values(values).reduce((total, value) => total + value, 0);
 
 export function Dashboard() {
   const [forecastTracksPrice, setForecastTracksPrice] = useState(true);
+  const [activeTab, setActiveTab] = useState<'init' | 'control' | 'history'>('control');
   const {
     phase, catalog, state, gameId, draft, loading, error, autoAdvance, runHistory,
     advanceDay, setDraftValue, setAutoAdvance, resetGame,
@@ -108,6 +109,11 @@ export function Dashboard() {
           </button>
         </div>
       </header>
+      <nav className="app-tabs" aria-label="Simulation sections">
+        <button className={activeTab === 'init' ? 'active' : ''} onClick={() => setActiveTab('init')}>Init</button>
+        <button className={activeTab === 'control' ? 'active' : ''} onClick={() => setActiveTab('control')}>Control Room</button>
+        <button className={activeTab === 'history' ? 'active' : ''} onClick={() => setActiveTab('history')}>History</button>
+      </nav>
 
       {phase === 'ended' && (
         <section className="run-ended">
@@ -126,7 +132,7 @@ export function Dashboard() {
         <Kpi label="Physics audit" value={balanceHealthy ? 'BALANCED' : 'DRIFT'} sub="green + roasted mass" trend={balanceHealthy ? 'up' : 'down'} />
       </section>
 
-      <section className="dash-card run-summary-card">
+      {activeTab === 'history' && <section className="dash-card run-summary-card">
         <div className="card-header-row"><div><h3>Simulation summary</h3><p className="card-note">Mode <strong>{state.simulation_mode ?? 'live'}</strong> · strategy <strong>{state.simulation_strategy ?? 'human_manual'}</strong>.</p></div><span className="status-pill">DAY {state.day}</span></div>
         <div className="summary-grid">
           <Summary label="Cumulative reward" value={money(state.history.reduce((total, day) => total + day.reward, 0))} />
@@ -136,22 +142,36 @@ export function Dashboard() {
           <Summary label="Demand events" value={String(state.events.filter((event) => event.category === 'demand').length)} />
           <Summary label="Supply events" value={String(state.events.filter((event) => event.category === 'supply').length)} />
         </div>
-      </section>
-      {runHistory.length > 0 && <section className="dash-card"><div className="card-header-row"><div><h3>Strategy history</h3><p className="card-note">Completed runs saved in this browser.</p></div><span className="status-pill">{runHistory.length} runs</span></div><div className="history-table"><div className="history-heading"><span>Mode / strategy</span><span>Seed</span><span>Reward</span><span>Cash</span><span>Service</span></div>{[...runHistory].reverse().slice(0, 8).map((run) => <div className="history-row" key={`${run.completedAt}-${run.seed}`}><strong>{run.mode} · {run.strategy}</strong><span>{run.seed}</span><span>{money(run.reward)}</span><span>{money(run.cash)}</span><span>{(run.service * 100).toFixed(1)}%</span></div>)}</div></section>}
+      </section>}
+      {activeTab === 'history' && runHistory.length > 0 && <section className="dash-card"><div className="card-header-row"><div><h3>Strategy history</h3><p className="card-note">Completed runs saved in this browser.</p></div><span className="status-pill">{runHistory.length} runs</span></div><div className="history-table"><div className="history-heading"><span>Mode / strategy</span><span>Seed</span><span>Reward</span><span>Cash</span><span>Service</span></div>{[...runHistory].reverse().slice(0, 8).map((run) => <div className="history-row" key={`${run.completedAt}-${run.seed}`}><strong>{run.mode} · {run.strategy}</strong><span>{run.seed}</span><span>{money(run.reward)}</span><span>{money(run.cash)}</span><span>{(run.service * 100).toFixed(1)}%</span></div>)}</div></section>}
 
-      <section className="dash-card top-pricing-card">
+      {activeTab === 'init' && <section className="dash-card init-summary-card">
+        <div className="card-header-row"><div><h3>Initialization snapshot</h3><p className="card-note">Coverage policies are fixed for this run and affect baseline/agent procurement and roast releases.</p></div><span className="status-pill">DAY {state.day}</span></div>
+        <div className="summary-grid">
+          <Summary label="Raw coverage policy" value={`${(state.procurement_coverage_days ?? 14).toFixed(0)} days`} />
+          <Summary label="Finished-goods policy" value={`${(state.finished_goods_coverage_days ?? 3).toFixed(0)} days`} />
+          <Summary label="Starting cash" value={money(state.cash)} />
+          <Summary label="Green on hand" value={kilos(greenTotal)} />
+          <Summary label="Finished on hand" value={kilos(roastedTotal)} />
+          <Summary label="Inbound green" value={kilos(sum(state.inbound_green))} />
+        </div>
+        <div className="material-table init-live-table"><div className="material-heading"><span>Raw material</span><span>On hand</span><span>Inbound</span><span>Coverage target</span><span>Lead time</span></div>{catalog.suppliers.map((supplier) => { const plan = state.material_plan?.[supplier.id]; return <div className="material-row" key={supplier.id}><strong>{supplier.name}</strong><span>{kilos(plan?.on_hand_kg ?? state.green_inventory[supplier.id] ?? 0)}</span><span>{kilos(plan?.inbound_kg ?? state.inbound_green[supplier.id] ?? 0)}</span><span>{kilos(plan?.target_kg ?? 0)}</span><span>{supplier.mean_lead_days.toFixed(1)} ± {supplier.lead_std_days.toFixed(1)} d</span></div>; })}</div>
+        <div className="finished-policy-grid">{catalog.products.map((product) => { const target = (state.demand_forecast?.[product.id] ?? product.base_daily_demand_kg) * (state.finished_goods_coverage_days ?? 3); return <div className="policy-chip" key={product.id}><strong>{product.name}</strong><span>On hand {kilos(state.roasted_inventory[product.id] ?? 0)}</span><span>Target {kilos(target)}</span></div>; })}</div>
+      </section>}
+
+      {activeTab === 'control' && <section className="dash-card top-pricing-card">
         <div className="card-header-row"><div><h3>Pricing & demand control</h3><p className="card-note">Price elasticity is applied to each SKU forecast before demand is realized.</p></div><button className="btn btn-small" onClick={() => setForecastTracksPrice(!forecastTracksPrice)}>{forecastTracksPrice ? 'Auto forecast' : 'Fixed forecast'}</button></div>
         <div className="pricing-grid">
-          {catalog.products.map((product) => <div className="price-input" key={product.id}><label>{product.name}</label><input type="number" min={product.min_price} max={product.max_price} step={0.5} value={draft.prices[product.id] ?? product.base_price} onChange={(event) => setDraftValue('prices', product.id, bounded(event.target.value, product.min_price, product.max_price))} /><small>{kilos(forecastAtDraftPrices[product.id] * 7)} / week forecast</small></div>)}
+          {catalog.products.map((product) => <div className="price-input" key={product.id}><label>{product.name} · USD/kg</label><input type="number" min={product.min_price} max={product.max_price} step={0.01} inputMode="decimal" value={draft.prices[product.id] ?? product.base_price} onChange={(event) => setDraftValue('prices', product.id, roundedBounded(event.target.value, product.min_price, product.max_price, 2))} /><small>{kilos(forecastAtDraftPrices[product.id] * 7)} / week forecast</small></div>)}
         </div>
-      </section>
+      </section>}
 
-      <section className="dash-grid">
+      {activeTab === 'control' && <section className="dash-grid">
         <article className="dash-card exceptions-card"><div className="card-header-row"><h3>Exceptions this run</h3><span className="status-pill">event tallies</span></div><div className="exception-grid"><Summary label="Late deliveries" value={String(exceptionCounts.late ?? 0)} /><Summary label="Quality events" value={String(exceptionCounts.quality ?? 0)} /><Summary label="No/low stock" value={String(exceptionCounts.no_stock ?? 0)} /><Summary label="Demand spikes" value={String(exceptionCounts.demand ?? 0)} /></div></article>
         <article className="dash-card"><div className="card-header-row"><h3>Resource utilization · current week</h3><span className="status-pill">7-day tally</span></div><div className="summary-list"><Summary label="Roaster utilization" value={`${Math.min(100, ((state.stats?.roast_hours ?? 0) % 168) / 168 * 100).toFixed(0)}%`} /><Summary label="Roast days active" value={String(state.history.slice(-7).filter((day) => (day.roasted_kg ?? 0) > 0).length)} /><Summary label="Roaster labor" value={`${((state.stats?.roast_hours ?? 0) % 168).toFixed(1)} hr`} /><Summary label="Packaging labor" value={`${((state.stats?.packaging_hours ?? 0) % 168).toFixed(1)} hr`} /></div></article>
-      </section>
+      </section>}
 
-      <section className="dash-card cumulative-card">
+      {activeTab === 'history' && <section className="dash-card cumulative-card">
         <div className="card-header-row">
           <div><h3>Cumulative production & exception stats</h3><p className="card-note">Totals since the start of this seeded run.</p></div>
           <span className="status-pill">{state.events.filter((event) => ['quality_failure', 'late_delivery', 'demand_spike', 'stockout'].includes(event.type)).length} recent exceptions</span>
@@ -164,9 +184,9 @@ export function Dashboard() {
           <Summary label="Spoilage" value={kilos((state.stats?.green_spoiled ?? 0) + (state.stats?.roasted_spoiled ?? 0))} />
           <Summary label="Lost sales" value={kilos(state.stats?.lost_sales ?? 0)} />
         </div>
-      </section>
+      </section>}
 
-      <section className="decision-brief dash-card">
+      {activeTab === 'control' && <section className="decision-brief dash-card">
         <div className="card-header-row">
           <div>
             <h3>Decision brief · weekly master schedule</h3>
@@ -205,9 +225,9 @@ export function Dashboard() {
             );
           })}
         </div>
-      </section>
+      </section>}
 
-      <section className="dash-grid">
+      {activeTab === 'control' && <section className="dash-grid">
         <article className="dash-card controls-card">
           <div className="card-header-row">
             <h3>Standing procurement PO · weekly kg</h3>
@@ -221,9 +241,9 @@ export function Dashboard() {
                   <small>{money(supplier.unit_cost)}/kg · {supplier.mean_lead_days}d mean · min {supplier.minimum_order}kg · on hand {kilos(state.green_inventory[supplier.id] ?? 0)} · inbound {kilos(state.inbound_green[supplier.id] ?? 0)} · BOM need {kilos(bomNeedByRaw[supplier.id] ?? 0)}</small>
                 </span>
                 <input
-                  type="number" min={0} max={supplier.maximum_order} step={5}
+                  type="number" min={0} max={supplier.maximum_order} step={supplier.lot_size_kg}
                   value={draft.weekly_green_orders[supplier.id] ?? 0}
-                  onChange={(event) => setDraftValue('weekly_green_orders', supplier.id, bounded(event.target.value, 0, supplier.maximum_order))}
+                  onChange={(event) => setDraftValue('weekly_green_orders', supplier.id, lotBounded(event.target.value, 0, supplier.maximum_order, supplier.lot_size_kg))}
                 />
                 <PlanMeter value={draft.weekly_green_orders[supplier.id] ?? 0} target={supplier.maximum_order} label={`supplier cap ${supplier.maximum_order} kg`} />
               </label>
@@ -244,9 +264,9 @@ export function Dashboard() {
                   <small>{product.roast_profile} · {state.roasted_inventory[product.id].toFixed(1)}kg ready</small>
                 </span>
                 <input
-                  type="number" min={0} max={catalog.defaults.roaster_capacity_kg_per_day * 1.5} step={5}
+                  type="number" min={0} max={catalog.defaults.roaster_capacity_kg_per_day * 7} step={product.lot_size_kg}
                   value={draft.weekly_roast_targets[product.id] ?? 0}
-                  onChange={(event) => setDraftValue('weekly_roast_targets', product.id, bounded(event.target.value, 0, catalog.defaults.roaster_capacity_kg_per_day * 7))}
+                  onChange={(event) => setDraftValue('weekly_roast_targets', product.id, lotBounded(event.target.value, 0, catalog.defaults.roaster_capacity_kg_per_day * 7, product.lot_size_kg))}
                 />
                 <PlanMeter value={draft.weekly_roast_targets[product.id] ?? 0} target={forecastAtDraftPrices[product.id] * 7 / expectedYield} label={`weekly demand ${kilos(forecastAtDraftPrices[product.id] * 7 / expectedYield)} green`} />
               </label>
@@ -262,32 +282,20 @@ export function Dashboard() {
           <div className="pricing-grid">
             {catalog.products.map((product) => (
               <div className="price-input" key={product.id}>
-                <label>{product.name}</label>
-                <input
-                  type="number" min={product.min_price} max={product.max_price} step={0.5}
+                  <label>{product.name} · USD/kg</label>
+                  <input
+                  type="number" min={product.min_price} max={product.max_price} step={0.01} inputMode="decimal"
                   value={draft.prices[product.id] ?? product.base_price}
-                  onChange={(event) => setDraftValue('prices', product.id, bounded(event.target.value, product.min_price, product.max_price))}
+                  onChange={(event) => setDraftValue('prices', product.id, roundedBounded(event.target.value, product.min_price, product.max_price, 2))}
                 />
               </div>
             ))}
           </div>
         </article>
 
-        <article className="dash-card">
-          <h3>Resource queues</h3>
-          <div className="summary-list">
-            <Summary label="Roaster" value={state.resources.roaster_busy ? 'RUNNING' : 'IDLE'} />
-            <Summary label="Roast jobs queued" value={String(state.resources.roaster_queue)} />
-            <Summary label="Packaging line" value={state.resources.packager_busy ? 'RUNNING' : 'IDLE'} />
-            <Summary label="Packaging jobs queued" value={String(state.resources.packager_queue)} />
-            <Summary label="Last-day roast output" value={kilos(state.today?.roasted_kg ?? 0)} />
-            <Summary label="Profile changeovers" value={String(state.today?.changeovers ?? 0)} />
-            <Summary label="Unplanned downtime" value={`${(state.today?.downtime_hours ?? 0).toFixed(1)} hr`} />
-          </div>
-        </article>
-      </section>
+      </section>}
 
-      <section className="chart-card dash-card">
+      {activeTab === 'history' && <section className="chart-card dash-card">
         <div className="card-header-row">
           <h3>Operating trace</h3>
           <span className="status-pill">cash · demand · service</span>
@@ -305,17 +313,17 @@ export function Dashboard() {
             <Line yAxisId="kg" type="monotone" dataKey="served_kg" stroke="#3b82f6" dot={false} name="Served kg" />
           </LineChart>
         </ResponsiveContainer>
-      </section>
+      </section>}
 
-      <section className="dash-card daily-ops-card">
+      {activeTab === 'history' && <section className="dash-card daily-ops-card">
         <div className="card-header-row"><div><h3>Daily operations ledger</h3><p className="card-note">End-of-day operating and financial tallies. Latest 14 days shown.</p></div><span className="status-pill">{state.history.length} days recorded</span></div>
         <div className="daily-ops-table">
           <div className="daily-ops-heading"><span>Day</span><span>Sales</span><span>Margin</span><span>Fulfilled / missed</span><span>Labor hr</span><span>Util.</span><span>Stockout kg</span><span>Cash</span></div>
           {[...state.history].slice(-14).reverse().map((day) => { const tally = day.eod_tally; return <div className="daily-ops-row" key={day.day}><strong>{day.day}</strong><span>{money(tally?.revenue ?? day.revenue)}</span><span>{money(tally?.gross_margin ?? 0)}</span><span>{tally?.orders_fulfilled ?? 0} / {tally?.orders_missed ?? 0}</span><span>{(tally?.total_labor_hours ?? ((day.roast_hours ?? 0) + (day.packaging_hours ?? 0))).toFixed(1)}</span><span>{((tally?.labor_utilization ?? 0) * 100).toFixed(0)}%</span><span className={tally?.stockout_kg ? 'text-danger' : ''}>{(tally?.stockout_kg ?? 0).toFixed(1)}</span><span>{money(tally?.cash ?? day.cash)}</span></div>; })}
         </div>
-      </section>
+      </section>}
 
-      <section className="dash-grid">
+      {activeTab === 'control' && <section className="dash-grid">
         <article className="dash-card">
           <h3>Inventory by SKU</h3>
           <div className="inventory-list">
@@ -346,9 +354,9 @@ export function Dashboard() {
             {state.roast_jobs.length === 0 && <div className="journal-empty">No batches scheduled yet.</div>}
           </div>
         </article>
-      </section>
+      </section>}
 
-      <EventPanel events={state.events} snapshot={state} gameId={gameId} />
+      {activeTab === 'control' && <EventPanel events={state.events} snapshot={state} gameId={gameId} />}
     </main>
   );
 }
@@ -381,4 +389,16 @@ function bounded(raw: string, minimum: number, maximum: number) {
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return minimum;
   return Math.min(maximum, Math.max(minimum, parsed));
+}
+
+function lotBounded(raw: string, minimum: number, maximum: number, lotSize: number) {
+  const value = bounded(raw, minimum, maximum);
+  const lot = Math.max(1, lotSize);
+  return Math.min(maximum, Math.max(minimum, Math.round(value / lot) * lot));
+}
+
+function roundedBounded(raw: string, minimum: number, maximum: number, decimals: number) {
+  const value = bounded(raw, minimum, maximum);
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
 }

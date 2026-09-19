@@ -41,7 +41,7 @@ class BaseStockPolicy:
         for product in self.scenario.products:
             on_hand = state["roasted_inventory"][product.id]
             backlog = state["backorders"][product.id]
-            target = state.get("demand_forecast", {}).get(product.id, product.base_daily_demand_kg) * 3.0 + backlog
+            target = state.get("demand_forecast", {}).get(product.id, product.base_daily_demand_kg) * self.scenario.finished_goods_coverage_days + backlog
             roasts[product.id] = max(0.0, target - on_hand) / expected_yield
             total_target += roasts[product.id]
         if total_target > self.scenario.roaster_capacity_kg_per_day:
