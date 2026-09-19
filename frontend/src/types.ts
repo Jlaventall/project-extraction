@@ -22,6 +22,7 @@ export interface Product {
   base_daily_demand_kg: number;
   shelf_life_days: number;
   roast_profile: string;
+  bom?: { raw_material_id: string; fraction: number }[];
 }
 
 export interface Catalog {

@@ -295,12 +295,29 @@ class CoffeeWorld:
             queue_room = max(0.0, queue_limit - queued_input)
             available = self.inventory.quantity("green")
             planned = min(requested, available, queue_room)
+            product = self.products[sku]
+            if product.bom:
+                bom_capacity = min(
+                    self.inventory.quantity("green", component.raw_material_id) / component.fraction
+                    for component in product.bom
+                    if component.fraction > 0
+                )
+                if bom_capacity < planned:
+                    warnings.append(f"{sku} roast reduced by BOM raw-material constraint")
+                    planned = min(planned, bom_capacity)
             if planned <= 1e-9:
                 warnings.append(f"{sku} roast rejected: no green stock or queue capacity")
                 continue
             if planned + 1e-9 < requested:
                 warnings.append(f"{sku} roast reduced to {planned:.1f} kg")
-            taken, cost, quality = self.inventory.consume("green", planned)
+            if product.bom:
+                taken = cost = quality_total = 0.0
+                for component in product.bom:
+                    amount, component_cost, component_quality = self.inventory.consume("green", planned * component.fraction, component.raw_material_id)
+                    taken += amount; cost += component_cost; quality_total += amount * component_quality
+                quality = quality_total / taken if taken else 0.0
+            else:
+                taken, cost, quality = self.inventory.consume("green", planned)
             self.stats["green_consumed"] += taken
             job = RoastJob(
                 job_id=self._next_id("roast"),

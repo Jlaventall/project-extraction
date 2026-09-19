@@ -79,6 +79,11 @@ export function SetupScreen() {
           {catalog.defaults.roaster_capacity_kg_per_day} kg/day roast capacity
         </p>
       )}
+      {catalog && <section className="staffing-panel init-panel">
+        <h3>Initialization · finished goods & BOM</h3>
+        <p className="config-hint">Recipes constrain which raw origins can satisfy each master roast order. Pricing can be refined in the live dashboard before commit.</p>
+        <div className="bom-table"><div className="bom-heading"><span>SKU</span><span>Initial price</span><span>Raw-material recipe</span></div>{catalog.products.map((product) => <div className="bom-row" key={product.id}><strong>{product.name}</strong><span>${product.base_price.toFixed(2)}/kg</span><span>{(product.bom ?? []).map((component) => `${component.raw_material_id} ${(component.fraction * 100).toFixed(0)}%`).join(' · ') || 'Unspecified'}</span></div>)}</div>
+      </section>}
       {error && <div className="api-error">API error: {error}. Start the Python server on port 8000.</div>}
       <div className="setup-nav">
         <button

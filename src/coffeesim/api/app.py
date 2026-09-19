@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import asdict
 from typing import Any, Literal
 
 import uvicorn
@@ -60,8 +61,8 @@ async def catalog() -> dict[str, Any]:
     scenario = default_scenario()
     return {
         "scenario": scenario.name,
-        "suppliers": [supplier.__dict__ for supplier in scenario.suppliers],
-        "products": [product.__dict__ for product in scenario.products],
+        "suppliers": [asdict(supplier) for supplier in scenario.suppliers],
+        "products": [asdict(product) for product in scenario.products],
         "defaults": {
             "horizon_days": scenario.horizon_days,
             "starting_cash": scenario.starting_cash,

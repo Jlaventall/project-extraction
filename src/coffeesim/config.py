@@ -17,6 +17,12 @@ class Supplier:
 
 
 @dataclass(frozen=True)
+class BomComponent:
+    raw_material_id: str
+    fraction: float
+
+
+@dataclass(frozen=True)
 class Product:
     id: str
     name: str
@@ -26,6 +32,7 @@ class Product:
     base_daily_demand_kg: float
     shelf_life_days: float
     roast_profile: str
+    bom: tuple[BomComponent, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)
@@ -72,8 +79,8 @@ def default_scenario(horizon_days: int = 90) -> Scenario:
             Supplier("brazil", "Brazil Contract", 6.35, 3.0, 0.7, 75.0, 800.0, 0.78, 0.96),
         ),
         products=(
-            Product("house", "House Blend", 22.0, 15.0, 32.0, 31.0, 30.0, "medium"),
-            Product("espresso", "Espresso", 25.0, 18.0, 36.0, 22.0, 35.0, "medium-dark"),
-            Product("single_origin", "Single Origin", 31.0, 22.0, 44.0, 13.0, 24.0, "light"),
+            Product("house", "House Blend", 22.0, 15.0, 32.0, 31.0, 30.0, "medium", (BomComponent("brazil", 0.60), BomComponent("colombia", 0.40))),
+            Product("espresso", "Espresso", 25.0, 18.0, 36.0, 22.0, 35.0, "medium-dark", (BomComponent("brazil", 0.70), BomComponent("colombia", 0.30))),
+            Product("single_origin", "Single Origin", 31.0, 22.0, 44.0, 13.0, 24.0, "light", (BomComponent("ethiopia", 1.0),)),
         ),
     )
