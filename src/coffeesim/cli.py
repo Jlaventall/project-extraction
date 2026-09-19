@@ -8,7 +8,7 @@ from coffeesim.config import default_scenario
 from coffeesim.policies.base_stock import BaseStockPolicy
 from coffeesim.simulation.replay import replay_trace
 from coffeesim.simulation.world import CoffeeWorld
-from coffeesim.simulation.benchmark import run_benchmark
+from coffeesim.simulation.benchmark import run_benchmark, run_benchmark_matrix
 
 
 def main() -> None:
@@ -19,8 +19,13 @@ def main() -> None:
     parser.add_argument("--replay", type=Path, help="Replay a saved trace JSON file")
     parser.add_argument("--benchmark", action="store_true", help="Run baseline and random policy benchmark")
     parser.add_argument("--output-dir", type=Path, default=Path("benchmark-output"))
+    parser.add_argument("--seeds", help="Comma-separated seeds for a benchmark matrix")
     args = parser.parse_args()
     if args.benchmark:
+        if args.seeds:
+            seeds = [int(value.strip()) for value in args.seeds.split(",") if value.strip()]
+            print(json.dumps(run_benchmark_matrix(days=args.days, seeds=seeds, output_dir=args.output_dir), indent=2))
+            return
         reports = run_benchmark(days=args.days, seed=args.seed, output_dir=args.output_dir)
         print(json.dumps([report["summary"] | {"policy": report["policy"]} for report in reports], indent=2))
         return

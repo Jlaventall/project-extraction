@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import statistics
 from dataclasses import asdict
 from pathlib import Path
 from typing import Callable
@@ -67,3 +68,33 @@ def run_benchmark(*, days: int = 90, seed: int = 42, output_dir: Path | None = N
             (output_dir / f"{report['policy']}-seed-{seed}-days-{days}.json").write_text(json.dumps(report, indent=2) + "\n")
         (output_dir / f"summary-seed-{seed}-days-{days}.json").write_text(json.dumps([report["summary"] | {"policy": report["policy"]} for report in reports], indent=2) + "\n")
     return reports
+
+
+def run_benchmark_matrix(*, days: int = 90, seeds: list[int] | None = None, output_dir: Path | None = None) -> dict:
+    """Run each policy over multiple seeds and return aggregate statistics."""
+    selected_seeds = seeds or [42]
+    reports = [report for seed in selected_seeds for report in run_benchmark(days=days, seed=seed, output_dir=output_dir)]
+    by_policy: dict[str, list[dict]] = {}
+    for report in reports:
+        by_policy.setdefault(report["policy"], []).append(report["summary"])
+    aggregate = {}
+    for policy, rows in by_policy.items():
+        rewards = [row["total_reward"] for row in rows]
+        cash = [row["cash"] for row in rows]
+        service = [row["service_level"] for row in rows]
+        aggregate[policy] = {
+            "runs": len(rows),
+            "seeds": selected_seeds,
+            "total_reward_mean": round(statistics.fmean(rewards), 4),
+            "total_reward_stddev": round(statistics.pstdev(rewards), 4),
+            "total_reward_min": round(min(rewards), 4),
+            "cash_mean": round(statistics.fmean(cash), 2),
+            "service_level_mean": round(statistics.fmean(service), 4),
+            "service_level_min": round(min(service), 4),
+            "mass_balance_ok": all(abs(row["mass_balance"]["green_error_kg"]) < 1e-6 and abs(row["mass_balance"]["roasted_error_kg"]) < 1e-6 for row in rows),
+        }
+    result = {"format": "coffeesim.benchmark-matrix.v1", "days": days, "seeds": selected_seeds, "policies": aggregate}
+    if output_dir is not None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / f"matrix-days-{days}.json").write_text(json.dumps(result, indent=2) + "\n")
+    return result
