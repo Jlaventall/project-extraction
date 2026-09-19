@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ActionDraft, Catalog, GameSnapshot, Phase } from '../types';
+import type { ActionDraft, Catalog, GameSnapshot, Phase, SimulationMode } from '../types';
 
 // Local development talks to the standalone API; a deployed build uses the
 // same-origin Vercel function unless an explicit API URL is configured.
@@ -15,7 +15,7 @@ interface GameStore {
   error: string | null;
   autoAdvance: boolean;
   fetchCatalog: () => Promise<void>;
-  startGame: (seed: number, horizonDays: number) => Promise<void>;
+  startGame: (seed: number, horizonDays: number, mode?: SimulationMode) => Promise<void>;
   advanceDay: (useBaseline?: boolean) => Promise<void>;
   setDraftValue: (group: keyof ActionDraft, key: string, value: number) => void;
   setAutoAdvance: (enabled: boolean) => void;
@@ -65,13 +65,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  startGame: async (seed, horizonDays) => {
+  startGame: async (seed, horizonDays, mode = 'live') => {
     set({ loading: true, error: null });
     try {
       const payload = await responseJson(await fetch(`${API_BASE}/api/games`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seed, horizon_days: horizonDays }),
+        body: JSON.stringify({ seed, horizon_days: horizonDays, mode }),
       })) as { game_id: string; state: GameSnapshot };
       const catalog = get().catalog;
       saveRun({ seed, horizonDays, actions: [] });

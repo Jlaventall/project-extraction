@@ -5,6 +5,7 @@ export function SetupScreen() {
   const { catalog, fetchCatalog, startGame, loading, error } = useGameStore();
   const [seed, setSeed] = useState(42);
   const [horizon, setHorizon] = useState(90);
+  const [mode, setMode] = useState<'live' | 'benchmark' | 'pettingzoo'>('live');
 
   useEffect(() => { void fetchCatalog(); }, [fetchCatalog]);
 
@@ -41,6 +42,15 @@ export function SetupScreen() {
             <span className="config-hint">Controls demand, yield, and delivery uncertainty.</span>
           </label>
           <label className="config-group">
+            <span>Simulation mode</span>
+            <select value={mode} onChange={(event) => setMode(event.target.value as typeof mode)}>
+              <option value="live">Live control room</option>
+              <option value="benchmark">Benchmark-compatible session</option>
+              <option value="pettingzoo">PettingZoo-compatible session</option>
+            </select>
+            <span className="config-hint">All modes use the same deterministic CoffeeWorld contract.</span>
+          </label>
+          <label className="config-group">
             <span>Episode horizon</span>
             <select value={horizon} onChange={(event) => setHorizon(Number(event.target.value))}>
               <option value={30}>30 days · shakedown</option>
@@ -63,7 +73,7 @@ export function SetupScreen() {
         <button
           className="btn btn-primary btn-start"
           disabled={loading || !catalog}
-          onClick={() => void startGame(seed, horizon)}
+          onClick={() => void startGame(seed, horizon, mode)}
         >
           {loading ? 'Starting engine…' : 'Start roastery'}
         </button>
@@ -71,4 +81,3 @@ export function SetupScreen() {
     </main>
   );
 }
-

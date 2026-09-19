@@ -1,4 +1,5 @@
 export type Phase = 'setup' | 'playing' | 'ended';
+export type SimulationMode = 'live' | 'benchmark' | 'pettingzoo';
 
 export interface Supplier {
   id: string;
@@ -83,6 +84,7 @@ export interface RoastJob {
 }
 
 export interface GameSnapshot {
+  simulation_mode?: SimulationMode;
   scenario: string;
   seed: number;
   day: number;

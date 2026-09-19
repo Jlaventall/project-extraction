@@ -2101,9 +2101,11 @@ body {
 .plan-meter-fill { display: block; height: 100%; border-radius: inherit; background: #f59e0b; transition: width 160ms ease; }
 .cumulative-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 .exception-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.summary-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 .demand-sparkline { min-width: 90px; }
 .btn-small { padding: 5px 9px; font-size: 0.72rem; }
 .event-category { display: inline-block; margin-right: 7px; padding: 2px 5px; border-radius: 4px; font-size: 0.62rem; text-transform: uppercase; letter-spacing: .05em; background: #263241; color: #93c5fd; }
 .event-category.demand { background: #3a2922; color: #fdba74; }
 @media (max-width: 900px) { .cumulative-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .exception-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

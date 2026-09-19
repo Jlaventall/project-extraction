@@ -116,6 +116,18 @@ export function Dashboard() {
         <Kpi label="Physics audit" value={balanceHealthy ? 'BALANCED' : 'DRIFT'} sub="green + roasted mass" trend={balanceHealthy ? 'up' : 'down'} />
       </section>
 
+      <section className="dash-card run-summary-card">
+        <div className="card-header-row"><div><h3>Simulation summary</h3><p className="card-note">Current run performance for mode <strong>{state.simulation_mode ?? 'live'}</strong>.</p></div><span className="status-pill">DAY {state.day}</span></div>
+        <div className="summary-grid">
+          <Summary label="Cumulative reward" value={money(state.history.reduce((total, day) => total + day.reward, 0))} />
+          <Summary label="Mean daily reward" value={money(state.history.length ? state.history.reduce((total, day) => total + day.reward, 0) / state.history.length : 0)} />
+          <Summary label="Service level" value={`${(state.service_level * 100).toFixed(2)}%`} />
+          <Summary label="Ending cash" value={money(state.cash)} />
+          <Summary label="Demand events" value={String(state.events.filter((event) => event.category === 'demand').length)} />
+          <Summary label="Supply events" value={String(state.events.filter((event) => event.category === 'supply').length)} />
+        </div>
+      </section>
+
       <section className="dash-card top-pricing-card">
         <div className="card-header-row"><div><h3>Pricing & demand control</h3><p className="card-note">Price elasticity is applied to each SKU forecast before demand is realized.</p></div><button className="btn btn-small" onClick={() => setForecastTracksPrice(!forecastTracksPrice)}>{forecastTracksPrice ? 'Auto forecast' : 'Fixed forecast'}</button></div>
         <div className="pricing-grid">

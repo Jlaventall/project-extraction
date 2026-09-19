@@ -31,6 +31,7 @@ class CoffeeWorld:
     ) -> None:
         self.scenario = scenario or default_scenario()
         self.seed = int(seed)
+        self.simulation_mode = "live"
         self.env = simpy.Environment()
         self.roaster = simpy.Resource(self.env, capacity=1)
         self.packager = simpy.Resource(self.env, capacity=1)
@@ -691,6 +692,7 @@ class CoffeeWorld:
         recent_jobs = [asdict(job) for job in self.roast_jobs[-30:]]
         return {
             "scenario": self.scenario.name,
+            "simulation_mode": self.simulation_mode,
             "seed": self.seed,
             "day": self.day,
             "horizon_days": self.scenario.horizon_days,
