@@ -42,6 +42,7 @@ class Scenario:
     starting_cash: float = 50_000.0
     credit_limit: float = 25_000.0
     starting_green_kg: float = 420.0
+    procurement_coverage_days: float = 14.0
     starting_roasted_kg_per_sku: float = 25.0
     green_capacity_kg: float = 2_500.0
     roasted_capacity_kg: float = 900.0
@@ -73,6 +74,7 @@ class Scenario:
         errors: list[str] = []
         supplier_ids = {supplier.id for supplier in self.suppliers}
         if self.horizon_days < 1: errors.append("horizon_days must be positive")
+        if self.procurement_coverage_days <= 0: errors.append("procurement_coverage_days must be positive")
         if self.green_capacity_kg <= 0 or self.roasted_capacity_kg <= 0: errors.append("inventory capacities must be positive")
         if self.roaster_capacity_kg_per_day <= 0 or self.packaging_capacity_kg_per_day <= 0: errors.append("resource capacities must be positive")
         for product in self.products:

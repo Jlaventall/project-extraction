@@ -13,3 +13,9 @@ def test_scenario_validation_catches_bad_bom() -> None:
     broken = replace(product, bom=(BomComponent("brazil", 0.2),))
     invalid = replace(scenario, products=(broken, *scenario.products[1:]))
     assert any("must sum" in error for error in invalid.validate())
+
+
+def test_scenario_validation_catches_bad_coverage() -> None:
+    scenario = default_scenario()
+    invalid = replace(scenario, procurement_coverage_days=0)
+    assert any("procurement_coverage_days" in error for error in invalid.validate())

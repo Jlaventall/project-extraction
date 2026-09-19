@@ -21,6 +21,21 @@ def test_create_and_step_game() -> None:
     assert payload["info"]["ledger_reconciles"] is True
 
 
+def test_create_game_accepts_coverage_days() -> None:
+    async def exercise_api() -> dict:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            created = await client.post("/api/games", json={"seed": 12, "horizon_days": 7, "coverage_days": 21})
+            assert created.status_code == 201
+            game_id = created.json()["game_id"]
+            state = (await client.get(f"/api/games/{game_id}")).json()["state"]
+            return state
+
+    state = asyncio.run(exercise_api())
+    assert state["procurement_coverage_days"] == 21
+    assert state["material_plan"]["ethiopia"]["lead_days"] == 8.0
+
+
 def test_game_lifecycle_and_health() -> None:
     async def exercise_api() -> tuple[int, int, int]:
         transport = httpx.ASGITransport(app=app)

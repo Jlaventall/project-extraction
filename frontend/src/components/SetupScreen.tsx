@@ -5,16 +5,17 @@ export function SetupScreen() {
   const { catalog, fetchCatalog, startGame, loading, error } = useGameStore();
   const [seed, setSeed] = useState(42);
   const [horizon, setHorizon] = useState(90);
+  const [coverageDays, setCoverageDays] = useState(14);
   const [mode, setMode] = useState<'live' | 'benchmark' | 'pettingzoo'>('live');
   const [strategy, setStrategy] = useState('human_manual');
   const [initialPrices, setInitialPrices] = useState<Record<string, number>>({});
   const [bomOverrides, setBomOverrides] = useState<Record<string, Record<string, number>>>({});
   const exportScenario = () => {
-    const blob = new Blob([JSON.stringify({ format: 'coffeesim.scenario.v1', seed, horizon, mode, strategy, initialPrices, bomOverrides }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ format: 'coffeesim.scenario.v1', seed, horizon, coverageDays, mode, strategy, initialPrices, bomOverrides }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'coffeesim-scenario.json'; anchor.click(); URL.revokeObjectURL(url);
   };
-  const importScenario = (file: File) => { void file.text().then((text) => { const value = JSON.parse(text) as Partial<typeof scenarioConfig>; if (typeof value.seed === 'number') setSeed(value.seed); if (typeof value.horizon === 'number') setHorizon(value.horizon); if (value.mode) setMode(value.mode); if (typeof value.strategy === 'string') setStrategy(value.strategy); if (value.initialPrices) setInitialPrices(value.initialPrices); if (value.bomOverrides) setBomOverrides(value.bomOverrides); }).catch(() => undefined); };
-  const scenarioConfig = { seed, horizon, mode, strategy, initialPrices, bomOverrides };
+  const importScenario = (file: File) => { void file.text().then((text) => { const value = JSON.parse(text) as Partial<typeof scenarioConfig>; if (typeof value.seed === 'number') setSeed(value.seed); if (typeof value.horizon === 'number') setHorizon(value.horizon); if (typeof value.coverageDays === 'number') setCoverageDays(Math.max(1, Math.min(60, value.coverageDays))); if (value.mode) setMode(value.mode); if (typeof value.strategy === 'string') setStrategy(value.strategy); if (value.initialPrices) setInitialPrices(value.initialPrices); if (value.bomOverrides) setBomOverrides(value.bomOverrides); }).catch(() => undefined); };
+  const scenarioConfig = { seed, horizon, coverageDays, mode, strategy, initialPrices, bomOverrides };
   const bomErrors = catalog?.products.flatMap((product) => {
     const recipe = bomOverrides[product.id] ?? Object.fromEntries((product.bom ?? []).map((item) => [item.raw_material_id, item.fraction]));
     const total = Object.values(recipe).reduce((sum, value) => sum + (Number(value) || 0), 0);
@@ -94,6 +95,13 @@ export function SetupScreen() {
         </p>
       )}
       {catalog && <section className="staffing-panel init-panel">
+        <h3>Initialization · raw-material coverage</h3>
+        <p className="config-hint">Set the raw green-coffee coverage target used by the baseline agent. More coverage improves resilience but commits more capital to inventory and inbound POs.</p>
+        <label className="config-group coverage-control"><span>Target raw coverage (days)</span><input type="number" min={1} max={60} step={1} value={coverageDays} onChange={(event) => setCoverageDays(Math.max(1, Math.min(60, Number(event.target.value) || 1)))} /><span className="config-hint">Lead times are shown below; target should normally cover the longest active lead time plus safety stock.</span></label>
+        <div className="material-table"><div className="material-heading"><span>Raw material</span><span>On hand</span><span>Target</span><span>Gap / capital</span><span>Lead time</span></div>{catalog.suppliers.map((supplier) => { const onHand = catalog.defaults.starting_green_kg / Math.max(1, catalog.suppliers.length); const target = catalog.products.reduce((total, product) => total + (product.base_daily_demand_kg * coverageDays / 0.825) * (product.bom ?? []).filter((component) => component.raw_material_id === supplier.id).reduce((sum, component) => sum + component.fraction, 0), 0); const gap = Math.max(0, target - onHand); return <div className="material-row" key={supplier.id}><strong>{supplier.name}</strong><span>{onHand.toFixed(1)} kg</span><span>{target.toFixed(1)} kg</span><span>{gap.toFixed(1)} kg · ${(gap * supplier.unit_cost).toFixed(0)}</span><span>{supplier.mean_lead_days.toFixed(1)} ± {supplier.lead_std_days.toFixed(1)} d</span></div>; })}</div>
+        <div className="coverage-total">Estimated initial replenishment capital: <strong>${catalog.suppliers.reduce((total, supplier) => { const onHand = catalog.defaults.starting_green_kg / Math.max(1, catalog.suppliers.length); const target = catalog.products.reduce((sum, product) => sum + (product.base_daily_demand_kg * coverageDays / 0.825) * (product.bom ?? []).filter((component) => component.raw_material_id === supplier.id).reduce((fractionTotal, component) => fractionTotal + component.fraction, 0), 0); return total + Math.max(0, target - onHand) * supplier.unit_cost; }, 0).toFixed(0)}</strong></div>
+      </section>}
+      {catalog && <section className="staffing-panel init-panel">
         <h3>Initialization · finished goods & BOM</h3>
         <p className="config-hint">Recipes constrain which raw origins can satisfy each master roast order. Pricing can be refined in the live dashboard before commit.</p>
         <div className="bom-table"><div className="bom-heading"><span>SKU</span><span>Initial price</span><span>Editable BOM fractions</span></div>{catalog.products.map((product) => <div className="bom-row" key={product.id}><strong>{product.name}</strong><input type="number" min={product.min_price} max={product.max_price} step={0.5} value={initialPrices[product.id] ?? product.base_price} onChange={(event) => setInitialPrices((current) => ({ ...current, [product.id]: Number(event.target.value) }))} /><span className="bom-inputs">{(product.bom ?? []).map((component) => <label key={component.raw_material_id}>{component.raw_material_id}<input type="number" min={0} max={1} step={0.05} value={bomOverrides[product.id]?.[component.raw_material_id] ?? component.fraction} onChange={(event) => setBomOverrides((current) => ({ ...current, [product.id]: { ...(current[product.id] ?? Object.fromEntries((product.bom ?? []).map((item) => [item.raw_material_id, item.fraction]))), [component.raw_material_id]: Number(event.target.value) } }))} /></label>)}</span></div>)}</div>
@@ -104,7 +112,7 @@ export function SetupScreen() {
         <button
           className="btn btn-primary btn-start"
           disabled={loading || !catalog || bomErrors.length > 0}
-          onClick={() => void startGame(seed, horizon, mode, strategy, initialPrices, bomOverrides)}
+          onClick={() => void startGame(seed, horizon, mode, strategy, initialPrices, bomOverrides, coverageDays)}
         >
           {loading ? 'Starting engine…' : 'Start roastery'}
         </button>

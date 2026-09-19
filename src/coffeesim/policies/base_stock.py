@@ -15,12 +15,13 @@ class BaseStockPolicy:
         # Procurement must follow the BOM, not just the cheapest total-kg
         # source.  Otherwise a baseline run can buy plenty of Brazil while
         # leaving Ethiopia at zero and making every single-origin roast
-        # infeasible.  Keep a ten-day raw-material target for each origin.
+        # infeasible.  Keep a configurable raw-material target for each origin.
+        coverage_days = self.scenario.procurement_coverage_days
         target_by_raw = {supplier.id: 0.0 for supplier in self.scenario.suppliers}
         for product in self.scenario.products:
             demand = state.get("demand_forecast", {}).get(product.id, product.base_daily_demand_kg)
             for component in product.bom:
-                target_by_raw[component.raw_material_id] += demand * 10.0 * component.fraction / expected_yield
+                target_by_raw[component.raw_material_id] += demand * coverage_days * component.fraction / expected_yield
 
         orders = {supplier.id: 0.0 for supplier in self.scenario.suppliers}
         for supplier in self.scenario.suppliers:

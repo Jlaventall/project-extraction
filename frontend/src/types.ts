@@ -32,8 +32,10 @@ export interface Catalog {
   defaults: {
     horizon_days: number;
     starting_cash: number;
+    starting_green_kg: number;
     credit_limit: number;
     roaster_capacity_kg_per_day: number;
+    procurement_coverage_days: number;
   };
 }
 
@@ -106,6 +108,11 @@ export interface GameSnapshot {
   backorders: Record<string, number>;
   prices: Record<string, number>;
   demand_forecast: Record<string, number>;
+  procurement_coverage_days?: number;
+  material_plan?: Record<string, {
+    on_hand_kg: number; inbound_kg: number; target_kg: number; gap_kg: number;
+    estimated_cost: number; lead_days: number;
+  }>;
   standing_plan?: {
     weekly_green_orders: Record<string, number>;
     weekly_roast_targets: Record<string, number>;

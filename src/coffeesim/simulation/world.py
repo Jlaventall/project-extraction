@@ -740,6 +740,29 @@ class CoffeeWorld:
             if self.stats["demand"] > 0
             else 1.0
         )
+        expected_yield = 1.0 - (self.scenario.shrinkage_low + self.scenario.shrinkage_high) / 2.0
+        material_plan = {}
+        forecast = self._expected_demand_forecast()
+        for supplier_id in self.suppliers:
+            target = 0.0
+            for product in self.products.values():
+                demand = forecast.get(product.id, product.base_daily_demand_kg)
+                target += sum(
+                    demand * self.scenario.procurement_coverage_days * component.fraction / expected_yield
+                    for component in product.bom
+                    if component.raw_material_id == supplier_id
+                )
+            on_hand = green[supplier_id]
+            inbound_qty = inbound[supplier_id]
+            gap = max(0.0, target - on_hand - inbound_qty)
+            material_plan[supplier_id] = {
+                "on_hand_kg": round(on_hand, 3),
+                "inbound_kg": round(inbound_qty, 3),
+                "target_kg": round(target, 3),
+                "gap_kg": round(gap, 3),
+                "estimated_cost": round(gap * self.suppliers[supplier_id].unit_cost, 2),
+                "lead_days": self.suppliers[supplier_id].mean_lead_days,
+            }
         recent_jobs = [asdict(job) for job in self.roast_jobs[-30:]]
         return {
             "scenario": self.scenario.name,
@@ -764,6 +787,8 @@ class CoffeeWorld:
             "backorders": {key: round(value, 3) for key, value in backlog.items()},
             "prices": {key: round(value, 2) for key, value in self.prices.items()},
             "demand_forecast": self._expected_demand_forecast(),
+            "procurement_coverage_days": self.scenario.procurement_coverage_days,
+            "material_plan": material_plan,
             "standing_plan": {
                 "weekly_green_orders": dict(self.standing_green_orders),
                 "weekly_roast_targets": dict(self.standing_roast_targets),
