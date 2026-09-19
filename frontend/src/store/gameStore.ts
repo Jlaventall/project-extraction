@@ -88,13 +88,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...draft, use_baseline: useBaseline }),
       })) as { state: GameSnapshot };
+      const standing = payload.state.standing_plan;
       set({
         state: payload.state,
         phase: payload.state.terminated || payload.state.truncated ? 'ended' : 'playing',
         loading: false,
         draft: {
-          weekly_green_orders: Object.fromEntries(Object.keys(get().draft.weekly_green_orders).map((key) => [key, 0])),
-          weekly_roast_targets: Object.fromEntries(Object.keys(get().draft.weekly_roast_targets).map((key) => [key, 0])),
+          weekly_green_orders: useBaseline && standing ? { ...standing.weekly_green_orders } : Object.fromEntries(Object.keys(get().draft.weekly_green_orders).map((key) => [key, 0])),
+          weekly_roast_targets: useBaseline && standing ? { ...standing.weekly_roast_targets } : Object.fromEntries(Object.keys(get().draft.weekly_roast_targets).map((key) => [key, 0])),
           prices: { ...payload.state.prices },
         },
       });

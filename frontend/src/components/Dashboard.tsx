@@ -107,6 +107,21 @@ export function Dashboard() {
         <Kpi label="Physics audit" value={balanceHealthy ? 'BALANCED' : 'DRIFT'} sub="green + roasted mass" trend={balanceHealthy ? 'up' : 'down'} />
       </section>
 
+      <section className="dash-card cumulative-card">
+        <div className="card-header-row">
+          <div><h3>Cumulative production & exception stats</h3><p className="card-note">Totals since the start of this seeded run.</p></div>
+          <span className="status-pill">{state.events.filter((event) => ['quality_failure', 'late_delivery', 'demand_spike', 'stockout'].includes(event.type)).length} recent exceptions</span>
+        </div>
+        <div className="cumulative-grid">
+          <Summary label="Green received" value={kilos(state.stats?.green_received ?? 0)} />
+          <Summary label="Green consumed" value={kilos(state.stats?.green_consumed ?? 0)} />
+          <Summary label="Roasted produced" value={kilos(state.stats?.roasted_produced ?? 0)} />
+          <Summary label="Roasted sold" value={kilos(state.stats?.roasted_sold ?? 0)} />
+          <Summary label="Spoilage" value={kilos((state.stats?.green_spoiled ?? 0) + (state.stats?.roasted_spoiled ?? 0))} />
+          <Summary label="Lost sales" value={kilos(state.stats?.lost_sales ?? 0)} />
+        </div>
+      </section>
+
       <section className="decision-brief dash-card">
         <div className="card-header-row">
           <div>

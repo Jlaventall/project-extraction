@@ -107,6 +107,7 @@ export interface GameSnapshot {
   events: SimEvent[];
   roast_jobs: RoastJob[];
   ledger_totals: Record<string, number>;
+  stats?: Record<string, number>;
   mass_balance: { green_error_kg: number; roasted_error_kg: number };
 }
 

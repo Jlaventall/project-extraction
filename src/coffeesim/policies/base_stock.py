@@ -36,7 +36,7 @@ class BaseStockPolicy:
             scale = self.scenario.roaster_capacity_kg_per_day / total_target
             roasts = {key: value * scale for key, value in roasts.items()}
         return WorldAction(
-            green_orders=orders,
-            roast_targets=roasts,
+            weekly_green_orders=orders,
+            weekly_roast_targets={key: value * 7.0 for key, value in roasts.items()},
             prices={product.id: product.base_price for product in self.scenario.products},
         )

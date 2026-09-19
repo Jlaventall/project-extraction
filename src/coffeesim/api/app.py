@@ -23,6 +23,8 @@ class CreateGameRequest(BaseModel):
 class StepRequest(BaseModel):
     green_orders: dict[str, float] = Field(default_factory=dict)
     roast_targets: dict[str, float] = Field(default_factory=dict)
+    weekly_green_orders: dict[str, float] = Field(default_factory=dict)
+    weekly_roast_targets: dict[str, float] = Field(default_factory=dict)
     prices: dict[str, float] = Field(default_factory=dict)
     use_baseline: bool = False
 
@@ -91,6 +93,8 @@ async def step_game(game_id: str, request: StepRequest) -> dict[str, Any]:
                 green_orders=request.green_orders,
                 roast_targets=request.roast_targets,
                 prices=request.prices,
+                weekly_green_orders=request.weekly_green_orders,
+                weekly_roast_targets=request.weekly_roast_targets,
             )
         try:
             state, reward, terminated, truncated, info = world.step(action)

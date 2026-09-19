@@ -2099,3 +2099,5 @@ body {
 .plan-meter { display: flex; align-items: center; gap: 8px; grid-column: 2; color: var(--muted); font-size: 0.72rem; }
 .plan-meter-track { display: block; width: 84px; height: 5px; overflow: hidden; border-radius: 5px; background: #2a2f38; }
 .plan-meter-fill { display: block; height: 100%; border-radius: inherit; background: #f59e0b; transition: width 160ms ease; }
+.cumulative-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .cumulative-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

@@ -199,6 +199,7 @@ class CoffeeWorld:
                 delay = float(self.supply_rng.uniform(1.0, 4.0))
                 lead += delay
                 warnings.append(f"{supplier_id} shipment incurred a {delay:.1f}-day exception delay")
+                self._log("late_delivery", f"{supplier.name} shipment delayed by {delay:.1f} days", delay_days=round(delay, 3))
             order = PurchaseOrder(
                 order_id=self._next_id("po"),
                 supplier_id=supplier_id,
@@ -393,6 +394,8 @@ class CoffeeWorld:
             price_ratio = self.prices[sku] / product.base_price
             price_factor = price_ratio ** -1.35
             shock = float(np.clip(self.demand_rng.lognormal(0.0, 0.12), 0.65, 1.55))
+            if shock >= 1.25:
+                self._log("demand_spike", f"{sku} demand spike at {shock:.0%} of expected volume", sku=sku, multiplier=round(shock, 4))
             expected = product.base_daily_demand_kg * weekday_factor * seasonal * price_factor * shock
             total = int(self.demand_rng.poisson(max(0.0, expected)))
             if total <= 0:
