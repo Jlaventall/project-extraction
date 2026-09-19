@@ -7,6 +7,7 @@ export function SetupScreen() {
   const [horizon, setHorizon] = useState(90);
   const [mode, setMode] = useState<'live' | 'benchmark' | 'pettingzoo'>('live');
   const [strategy, setStrategy] = useState('human_manual');
+  const [initialPrices, setInitialPrices] = useState<Record<string, number>>({});
 
   useEffect(() => { void fetchCatalog(); }, [fetchCatalog]);
 
@@ -82,14 +83,14 @@ export function SetupScreen() {
       {catalog && <section className="staffing-panel init-panel">
         <h3>Initialization · finished goods & BOM</h3>
         <p className="config-hint">Recipes constrain which raw origins can satisfy each master roast order. Pricing can be refined in the live dashboard before commit.</p>
-        <div className="bom-table"><div className="bom-heading"><span>SKU</span><span>Initial price</span><span>Raw-material recipe</span></div>{catalog.products.map((product) => <div className="bom-row" key={product.id}><strong>{product.name}</strong><span>${product.base_price.toFixed(2)}/kg</span><span>{(product.bom ?? []).map((component) => `${component.raw_material_id} ${(component.fraction * 100).toFixed(0)}%`).join(' · ') || 'Unspecified'}</span></div>)}</div>
+        <div className="bom-table"><div className="bom-heading"><span>SKU</span><span>Initial price</span><span>Raw-material recipe</span></div>{catalog.products.map((product) => <div className="bom-row" key={product.id}><strong>{product.name}</strong><input type="number" min={product.min_price} max={product.max_price} step={0.5} value={initialPrices[product.id] ?? product.base_price} onChange={(event) => setInitialPrices((current) => ({ ...current, [product.id]: Number(event.target.value) }))} /><span>{(product.bom ?? []).map((component) => `${component.raw_material_id} ${(component.fraction * 100).toFixed(0)}%`).join(' · ') || 'Unspecified'}</span></div>)}</div>
       </section>}
       {error && <div className="api-error">API error: {error}. Start the Python server on port 8000.</div>}
       <div className="setup-nav">
         <button
           className="btn btn-primary btn-start"
           disabled={loading || !catalog}
-          onClick={() => void startGame(seed, horizon, mode, strategy)}
+          onClick={() => void startGame(seed, horizon, mode, strategy, initialPrices)}
         >
           {loading ? 'Starting engine…' : 'Start roastery'}
         </button>

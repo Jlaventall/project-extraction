@@ -21,6 +21,7 @@ class CreateGameRequest(BaseModel):
     horizon_days: int = Field(default=90, ge=7, le=730)
     mode: Literal["live", "benchmark", "pettingzoo"] = "live"
     strategy: str = "human_manual"
+    initial_prices: dict[str, float] = Field(default_factory=dict)
 
 
 class StepRequest(BaseModel):
@@ -78,6 +79,9 @@ async def create_game(request: CreateGameRequest) -> dict[str, Any]:
     world = CoffeeWorld(default_scenario(request.horizon_days), seed=request.seed)
     world.simulation_mode = request.mode
     world.simulation_strategy = request.strategy
+    for product in world.scenario.products:
+        if product.id in request.initial_prices:
+            world.prices[product.id] = min(product.max_price, max(product.min_price, float(request.initial_prices[product.id])))
     game_store.create(game_id, world)
     state = world.snapshot()
     return {"game_id": game_id, "state": state, "simulation_mode": request.mode, "strategy": request.strategy}
